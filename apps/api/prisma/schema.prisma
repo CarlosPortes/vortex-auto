@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------------------------
+// DOC-001, DOC-002 e DOC-008: Organização, Tenant e Unidade
+// -------------------------------------------------------------
+model Empresa {
+  id           String   @id @default(uuid())
+  razaoSocial  String   @map("razao_social")
+  nomeFantasia String?  @map("nome_fantasia")
+  cnpj         String   @unique
+  telefone     String
+  cidade       String
+  uf           String   @db.VarChar(2)
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  unidades       Unidade[]
+  vinculos       VinculoUsuarioEmpresa[]
+  auditorias     RegistroAuditoria[]
+  idempotencias  ChaveIdempotencia[]
+
+  @@map("empresas")
+}
+
+model Unidade {
+  id           String   @id @default(uuid())
+  empresaId    String   @map("empresa_id")
+  nome         String
+  ativo        Boolean  @default(true)
+  principal    Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  empresa  Empresa                 @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  vinculos VinculoUsuarioEmpresa[]
+
+  @@map("unidades")
+}
+
+// -------------------------------------------------------------
+// DOC-005 e DOC-008: Identidade, Acesso e RBAC
+// -------------------------------------------------------------
+model Usuario {
+  id           String   @id @default(uuid())
+  nome         String
+  email        String   @unique
+  senhaHash    String   @map("senha_hash")
+  ativo        Boolean  @default(true)
+  superAdmin   Boolean  @default(false) @map("super_admin")
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  vinculos   VinculoUsuarioEmpresa[]
+  auditorias RegistroAuditoria[]
+
+  @@map("usuarios")
+}
+
+model VinculoUsuarioEmpresa {
+  id              String   @id @default(uuid())
+  usuarioId       String   @map("usuario_id")
+  empresaId       String   @map("empresa_id")
+  unidadeId       String   @map("unidade_id")
+  ativo           Boolean  @default(true)
+  alcadaDesconto  Decimal  @default(0.0) @map("alcada_desconto") @db.Decimal(12, 2)
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+
+  usuario Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  empresa Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  unidade Unidade         @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  perfis  VinculoPerfil[]
+
+  @@unique([usuarioId, empresaId])
+  @@map("vinculos_usuario_empresa")
+}
+
+model Perfil {
+  id        String   @id @default(uuid())
+  codigo    String   @unique // ADMIN_GERAL, GESTOR, RECEPCAO, TECNICO, INSPETOR, FINANCEIRO
+  nome      String
+  descricao String?
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  permissoes PerfilPermissao[]
+  vinculos   VinculoPerfil[]
+
+  @@map("perfis")
+}
+
+model Permissao {
+  id        String   @id @default(uuid())
+  codigo    String   @unique // ATENDIMENTO_ABRIR, ORCAMENTO_DECIDIR, etc.
+  nome      String
+  modulo    String
+  descricao String?
+
+  perfis PerfilPermissao[]
+
+  @@map("permissoes")
+}
+
+model PerfilPermissao {
+  perfilId    String @map("perfil_id")
+  permissaoId String @map("permissao_id")
+
+  perfil    Perfil    @relation(fields: [perfilId], references: [id], onDelete: Cascade)
+  permissao Permissao @relation(fields: [permissaoId], references: [id], onDelete: Cascade)
+
+  @@id([perfilId, permissaoId])
+  @@map("perfil_permissoes")
+}
+
+model VinculoPerfil {
+  vinculoId String @map("vinculo_id")
+  perfilId  String @map("perfil_id")
+
+  vinculo VinculoUsuarioEmpresa @relation(fields: [vinculoId], references: [id], onDelete: Cascade)
+  perfil  Perfil                @relation(fields: [perfilId], references: [id], onDelete: Cascade)
+
+  @@id([vinculoId, perfilId])
+  @@map("vinculo_perfis")
+}
+
+// -------------------------------------------------------------
+// DOC-006, DOC-012 e HU-029: Auditoria Transversal
+// -------------------------------------------------------------
+model RegistroAuditoria {
+  id           String   @id @default(uuid())
+  empresaId    String   @map("empresa_id")
+  unidadeId    String?  @map("unidade_id")
+  usuarioId    String?  @map("usuario_id")
+  operacao     String   // LOGIN, LOGOUT, CRIACAO, ALTERACAO, EXCLUSAO, etc.
+  entidade     String   // Usuario, Atendimento, Orcamento, OS, etc.
+  entidadeId   String?  @map("entidade_id")
+  detalhes     Json?
+  ipOrigem     String?  @map("ip_origem")
+  userAgent    String?  @map("user_agent")
+  correlacaoId String?  @map("correlacao_id")
+  criadoEm     DateTime @default(now()) @map("criado_em")
+
+  empresa Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([empresaId, criadoEm])
+  @@index([empresaId, entidade, entidadeId])
+  @@map("registros_auditoria")
+}
+
+// -------------------------------------------------------------
+// DOC-006, DOC-012 e HU-002: Idempotência de Mutações Críticas
+// -------------------------------------------------------------
+model ChaveIdempotencia {
+  id           String   @id @default(uuid())
+  empresaId    String   @map("empresa_id")
+  chave        String   // Fornecida pelo cliente no header Idempotency-Key
+  rota         String
+  statusHttp   Int      @map("status_http")
+  respostaJson Json     @map("resposta_json")
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  expiraEm     DateTime @map("expira_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, chave])
+  @@index([expiraEm])
+  @@map("chaves_idempotencia")
+}
