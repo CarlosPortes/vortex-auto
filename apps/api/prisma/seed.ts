@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { PerfilAcesso, PermissaoAcesso } from '@vortex/shared';
+import { PerfilAcesso, PermissaoAcesso, StatusAtendimento, NivelCombustivel } from '@vortex/shared';
 
 const prisma = new PrismaClient();
 
@@ -63,7 +63,6 @@ async function main() {
       create: perm,
     });
 
-    // Vincular todas as permissões ao ADMIN_GERAL
     const adminPerfilId = perfisMap.get(PerfilAcesso.ADMIN_GERAL);
     if (adminPerfilId) {
       await prisma.perfilPermissao.upsert({
@@ -74,7 +73,28 @@ async function main() {
     }
   }
 
-  // 3. Cadastrar Empresa Piloto / Demonstração
+  // 3. Cadastrar Categorias de Veículos (DOC-001 e DOC-002)
+  const categoriasData = [
+    { codigo: 'PASSEIO', nome: 'Automóvel de Passeio' },
+    { codigo: 'SUV', nome: 'SUV / Crossover' },
+    { codigo: 'PICKUP', nome: 'Picape / Utilitário Leve' },
+    { codigo: 'MOTO', nome: 'Motocicleta' },
+    { codigo: 'VAN', nome: 'Van / Furgão' },
+    { codigo: 'CAMINHAO', nome: 'Caminhão' },
+    { codigo: 'OUTRO', nome: 'Outra Categoria' },
+  ];
+
+  const categoriasMap = new Map<string, string>();
+  for (const cat of categoriasData) {
+    const reg = await prisma.categoriaVeiculo.upsert({
+      where: { codigo: cat.codigo },
+      update: { nome: cat.nome },
+      create: cat,
+    });
+    categoriasMap.set(cat.codigo, reg.id);
+  }
+
+  // 4. Cadastrar Empresa Piloto / Demonstração
   const empresa = await prisma.empresa.upsert({
     where: { cnpj: '12345678000190' },
     update: {},
@@ -89,7 +109,7 @@ async function main() {
     },
   });
 
-  // 4. Cadastrar Unidade Operacional Ativa (MVP: 1 unidade ativa por empresa)
+  // 5. Cadastrar Unidade Operacional Ativa (MVP: 1 unidade ativa por empresa)
   let unidade = await prisma.unidade.findFirst({
     where: { empresaId: empresa.id },
   });
@@ -105,7 +125,7 @@ async function main() {
     });
   }
 
-  // 5. Cadastrar Usuário Administrador Inicial
+  // 6. Cadastrar Usuário Administrador Inicial
   const senhaHash = await bcrypt.hash('admin123', 10);
   const usuarioAdmin = await prisma.usuario.upsert({
     where: { email: 'admin@vortexauto.com.br' },
@@ -119,7 +139,7 @@ async function main() {
     },
   });
 
-  // 6. Criar Vínculo Usuário-Empresa com Perfil ADMIN_GERAL
+  // 7. Criar Vínculo Usuário-Empresa com Perfil ADMIN_GERAL
   const vinculo = await prisma.vinculoUsuarioEmpresa.upsert({
     where: { usuarioId_empresaId: { usuarioId: usuarioAdmin.id, empresaId: empresa.id } },
     update: { unidadeId: unidade.id, ativo: true },
@@ -141,11 +161,95 @@ async function main() {
     });
   }
 
-  console.log('Seed concluído com sucesso!');
-  console.log('Credenciais de teste:');
-  console.log('E-mail: admin@vortexauto.com.br');
-  console.log('Senha:  admin123');
-  console.log(`Empresa: ${empresa.razaoSocial} (${empresa.cnpj})`);
+  // 8. ENT-002: Dados Demonstrativos de Cliente, Veículo e Atendimento
+  const clienteDemo = await prisma.cliente.upsert({
+    where: { empresaId_cpfCnpj: { empresaId: empresa.id, cpfCnpj: '12345678909' } },
+    update: {},
+    create: {
+      empresaId: empresa.id,
+      tipo: 'FISICA',
+      nomeRazao: 'Carlos Eduardo Silva',
+      cpfCnpj: '12345678909',
+      telefone: '(11) 99123-4567',
+      email: 'carlos.silva@email.com',
+      cidade: 'São Paulo',
+      uf: 'SP',
+      observacoes: 'Cliente preferencial, troca de óleo regular.',
+    },
+  });
+
+  const categoriaPasseioId = categoriasMap.get('PASSEIO')!;
+  const veiculoDemo = await prisma.veiculo.upsert({
+    where: { empresaId_placa: { empresaId: empresa.id, placa: 'BRA2E19' } },
+    update: {},
+    create: {
+      empresaId: empresa.id,
+      placa: 'BRA2E19',
+      marca: 'Honda',
+      modelo: 'Civic EXL 2.0 Flex',
+      anoFabricacao: 2021,
+      anoModelo: 2021,
+      cor: 'Cinza Metálico',
+      combustivel: 'Flex',
+      categoriaId: categoriaPasseioId,
+    },
+  });
+
+  await prisma.vinculoClienteVeiculo.upsert({
+    where: {
+      clienteId_veiculoId_empresaId: {
+        clienteId: clienteDemo.id,
+        veiculoId: veiculoDemo.id,
+        empresaId: empresa.id,
+      },
+    },
+    update: {},
+    create: {
+      empresaId: empresa.id,
+      clienteId: clienteDemo.id,
+      veiculoId: veiculoDemo.id,
+      papel: 'PROPRIETARIO',
+    },
+  });
+
+  // Atendimento Demonstrativo
+  const atendimentoExistente = await prisma.atendimento.findFirst({
+    where: { empresaId: empresa.id, numeroSequencial: 1 },
+  });
+
+  if (!atendimentoExistente) {
+    const atendimento = await prisma.atendimento.create({
+      data: {
+        empresaId: empresa.id,
+        unidadeId: unidade.id,
+        numeroSequencial: 1,
+        codigoFormatado: 'AT-2026-0001',
+        clienteId: clienteDemo.id,
+        veiculoId: veiculoDemo.id,
+        usuarioAberturaId: usuarioAdmin.id,
+        status: StatusAtendimento.CONFIRMADO,
+        queixaPrincipal: 'Ruído metálico na roda dianteira direita ao frear em declives e trepidação suave no volante.',
+        previsaoEntrega: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Em 2 dias
+      },
+    });
+
+    await prisma.medicaoVeiculo.create({
+      data: {
+        empresaId: empresa.id,
+        atendimentoId: atendimento.id,
+        quilometragem: 54320,
+        nivelCombustivel: NivelCombustivel.MEIO,
+        pertencesDeixados: 'Óculos de sol no porta-luvas.',
+        avariasPrevias: 'Pequeno risco no para-choque traseiro lado esquerdo.',
+        temEstepe: true,
+        temMacaco: true,
+        temChaveRoda: true,
+        temManualChaveReserva: true,
+      },
+    });
+  }
+
+  console.log('Seed ENT-002 concluído com sucesso!');
 }
 
 main()

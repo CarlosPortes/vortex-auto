@@ -26,6 +26,10 @@ model Empresa {
   vinculos       VinculoUsuarioEmpresa[]
   auditorias     RegistroAuditoria[]
   idempotencias  ChaveIdempotencia[]
+  clientes       Cliente[]
+  veiculos       Veiculo[]
+  vinculosCliVei VinculoClienteVeiculo[]
+  atendimentos   Atendimento[]
 
   @@map("empresas")
 }
@@ -39,8 +43,9 @@ model Unidade {
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  empresa  Empresa                 @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  vinculos VinculoUsuarioEmpresa[]
+  empresa      Empresa                 @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  vinculos     VinculoUsuarioEmpresa[]
+  atendimentos Atendimento[]
 
   @@map("unidades")
 }
@@ -58,21 +63,22 @@ model Usuario {
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  vinculos   VinculoUsuarioEmpresa[]
-  auditorias RegistroAuditoria[]
+  vinculos            VinculoUsuarioEmpresa[]
+  auditorias          RegistroAuditoria[]
+  atendimentosAbertos Atendimento[]           @relation("UsuarioAberturaAtendimento")
 
   @@map("usuarios")
 }
 
 model VinculoUsuarioEmpresa {
-  id              String   @id @default(uuid())
-  usuarioId       String   @map("usuario_id")
-  empresaId       String   @map("empresa_id")
-  unidadeId       String   @map("unidade_id")
-  ativo           Boolean  @default(true)
-  alcadaDesconto  Decimal  @default(0.0) @map("alcada_desconto") @db.Decimal(12, 2)
-  criadoEm        DateTime @default(now()) @map("criado_em")
-  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+  id             String   @id @default(uuid())
+  usuarioId      String   @map("usuario_id")
+  empresaId      String   @map("empresa_id")
+  unidadeId      String   @map("unidade_id")
+  ativo          Boolean  @default(true)
+  alcadaDesconto Decimal  @default(0.0) @map("alcada_desconto") @db.Decimal(12, 2)
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
 
   usuario Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   empresa Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
@@ -98,7 +104,7 @@ model Perfil {
 
 model Permissao {
   id        String   @id @default(uuid())
-  codigo    String   @unique // ATENDIMENTO_ABRIR, ORCAMENTO_DECIDIR, etc.
+  codigo    String   @unique
   nome      String
   modulo    String
   descricao String?
@@ -138,8 +144,8 @@ model RegistroAuditoria {
   empresaId    String   @map("empresa_id")
   unidadeId    String?  @map("unidade_id")
   usuarioId    String?  @map("usuario_id")
-  operacao     String   // LOGIN, LOGOUT, CRIACAO, ALTERACAO, EXCLUSAO, etc.
-  entidade     String   // Usuario, Atendimento, Orcamento, OS, etc.
+  operacao     String   // LOGIN, CRIACAO, ALTERACAO, etc.
+  entidade     String
   entidadeId   String?  @map("entidade_id")
   detalhes     Json?
   ipOrigem     String?  @map("ip_origem")
@@ -161,7 +167,7 @@ model RegistroAuditoria {
 model ChaveIdempotencia {
   id           String   @id @default(uuid())
   empresaId    String   @map("empresa_id")
-  chave        String   // Fornecida pelo cliente no header Idempotency-Key
+  chave        String
   rota         String
   statusHttp   Int      @map("status_http")
   respostaJson Json     @map("resposta_json")
@@ -173,4 +179,144 @@ model ChaveIdempotencia {
   @@unique([empresaId, chave])
   @@index([expiraEm])
   @@map("chaves_idempotencia")
+}
+
+// -------------------------------------------------------------
+// DOC-002, DOC-007, DOC-008 e HU-006: Cadastros - Clientes
+// -------------------------------------------------------------
+model Cliente {
+  id              String   @id @default(uuid())
+  empresaId       String   @map("empresa_id")
+  tipo            String   @default("FISICA") // FISICA ou JURIDICA
+  nomeRazao       String   @map("nome_razao")
+  apelidoFantasia String?  @map("apelido_fantasia")
+  cpfCnpj         String   @map("cpf_cnpj")
+  telefone        String
+  email           String?
+  cep             String?
+  logradouro      String?
+  numero          String?
+  bairro          String?
+  cidade          String?
+  uf              String?  @db.VarChar(2)
+  observacoes     String?
+  ativo           Boolean  @default(true)
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+
+  empresa        Empresa                 @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  veiculos       VinculoClienteVeiculo[]
+  atendimentos   Atendimento[]
+
+  @@unique([empresaId, cpfCnpj])
+  @@index([empresaId, nomeRazao])
+  @@map("clientes")
+}
+
+// -------------------------------------------------------------
+// DOC-002, DOC-007, DOC-008 e HU-007: Cadastros - Veículos
+// -------------------------------------------------------------
+model CategoriaVeiculo {
+  id        String    @id @default(uuid())
+  codigo    String    @unique // PASSEIO, SUV, PICKUP, MOTO, VAN, CAMINHAO, OUTRO
+  nome      String
+  descricao String?
+  veiculos  Veiculo[]
+
+  @@map("categorias_veiculo")
+}
+
+model Veiculo {
+  id            String   @id @default(uuid())
+  empresaId     String   @map("empresa_id")
+  placa         String
+  chassi        String?
+  marca         String
+  modelo        String
+  anoFabricacao Int?     @map("ano_fabricacao")
+  anoModelo     Int?     @map("ano_modelo")
+  cor           String?
+  combustivel   String?
+  categoriaId   String   @map("categoria_id")
+  ativo         Boolean  @default(true)
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
+
+  empresa      Empresa                 @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  categoria    CategoriaVeiculo        @relation(fields: [categoriaId], references: [id])
+  clientes     VinculoClienteVeiculo[]
+  atendimentos Atendimento[]
+
+  @@unique([empresaId, placa])
+  @@index([empresaId, placa])
+  @@map("veiculos")
+}
+
+model VinculoClienteVeiculo {
+  id        String   @id @default(uuid())
+  empresaId String   @map("empresa_id")
+  clienteId String   @map("cliente_id")
+  veiculoId String   @map("veiculo_id")
+  papel     String   @default("PROPRIETARIO") // PROPRIETARIO, CONDUTOR, FROTA, OUTRO
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  cliente Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  veiculo Veiculo @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
+
+  @@unique([clienteId, veiculoId, empresaId])
+  @@map("vinculos_cliente_veiculo")
+}
+
+// -------------------------------------------------------------
+// DOC-001, DOC-003, DOC-007, DOC-008 e HU-008/009: Atendimento (Eixo Central)
+// -------------------------------------------------------------
+model Atendimento {
+  id                String    @id @default(uuid())
+  empresaId         String    @map("empresa_id")
+  unidadeId         String    @map("unidade_id")
+  numeroSequencial  Int       @map("numero_sequencial")
+  codigoFormatado   String    @map("codigo_formatado") // Ex: AT-2026-0001
+  clienteId         String    @map("cliente_id")
+  veiculoId         String    @map("veiculo_id")
+  usuarioAberturaId String    @map("usuario_abertura_id")
+  status            String    @default("CONFIRMADO") // RASCUNHO, CONFIRMADO, EM_DIAGNOSTICO, etc.
+  queixaPrincipal   String    @map("queixa_principal")
+  dataEntrada       DateTime  @default(now()) @map("data_entrada")
+  previsaoEntrega   DateTime? @map("previsao_entrega")
+  finalizadoEm      DateTime? @map("finalizado_em")
+  criadoEm          DateTime  @default(now()) @map("criado_em")
+  atualizadoEm      DateTime  @updatedAt @map("atualizado_em")
+
+  empresa         Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  unidade         Unidade         @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  cliente         Cliente         @relation(fields: [clienteId], references: [id])
+  veiculo         Veiculo         @relation(fields: [veiculoId], references: [id])
+  usuarioAbertura Usuario         @relation("UsuarioAberturaAtendimento", fields: [usuarioAberturaId], references: [id])
+  medicao         MedicaoVeiculo?
+
+  @@unique([empresaId, numeroSequencial])
+  @@index([empresaId, status])
+  @@index([empresaId, codigoFormatado])
+  @@map("atendimentos")
+}
+
+model MedicaoVeiculo {
+  id                    String   @id @default(uuid())
+  empresaId             String   @map("empresa_id")
+  atendimentoId         String   @unique @map("atendimento_id")
+  quilometragem         Int
+  nivelCombustivel      String   @default("MEIO") @map("nivel_combustivel")
+  pertencesDeixados     String?  @map("pertences_deixados")
+  avariasPrevias        String?  @map("avarias_previas")
+  temEstepe             Boolean  @default(true) @map("tem_estepe")
+  temMacaco             Boolean  @default(true) @map("tem_macaco")
+  temChaveRoda          Boolean  @default(true) @map("tem_chave_roda")
+  temManualChaveReserva Boolean  @default(false) @map("tem_manual_chave_reserva")
+  criadoEm              DateTime @default(now()) @map("criado_em")
+
+  atendimento Atendimento @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+
+  @@map("medicoes_veiculo")
 }

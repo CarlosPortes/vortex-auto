@@ -5,6 +5,9 @@ import dotenv from 'dotenv';
 import { randomUUID } from 'crypto';
 import { authRoutes } from './routes/auth.routes.js';
 import { adminRoutes } from './routes/admin.routes.js';
+import { clientesRoutes } from './routes/clientes.routes.js';
+import { veiculosRoutes } from './routes/veiculos.routes.js';
+import { atendimentosRoutes } from './routes/atendimentos.routes.js';
 
 dotenv.config();
 
@@ -36,7 +39,7 @@ app.get('/api/health', async () => {
   return {
     status: 'online',
     aplicacao: 'Vortex Auto API',
-    versao: '0.1.0',
+    versao: '0.2.0',
     timestamp: new Date().toISOString(),
   };
 });
@@ -44,6 +47,9 @@ app.get('/api/health', async () => {
 // Registrar Módulos de Rotas
 await app.register(authRoutes, { prefix: '/api/auth' });
 await app.register(adminRoutes, { prefix: '/api/admin' });
+await app.register(clientesRoutes, { prefix: '/api/clientes' });
+await app.register(veiculosRoutes, { prefix: '/api/veiculos' });
+await app.register(atendimentosRoutes, { prefix: '/api/atendimentos' });
 
 // Inicialização do Servidor
 const PORT = Number(process.env.PORT) || 3333;

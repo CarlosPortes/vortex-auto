@@ -7,11 +7,15 @@ import {
   CheckCircle2,
   Server,
   Layers,
+  ClipboardList,
+  Car,
 } from 'lucide-react';
 import { Header } from './components/Header';
 import { JornadaVisualizer } from './components/JornadaVisualizer';
 import { ColaboradoresTab } from './components/ColaboradoresTab';
 import { AuditoriaTab } from './components/AuditoriaTab';
+import { AtendimentosTab } from './components/AtendimentosTab';
+import { ClientesVeiculosTab } from './components/ClientesVeiculosTab';
 import { LoginModal } from './components/LoginModal';
 import { apiRequest, clearStoredToken } from './api';
 import { UserTenantContext, Colaborador, RegistroAuditoria } from './types';
@@ -19,7 +23,9 @@ import { UserTenantContext, Colaborador, RegistroAuditoria } from './types';
 export const App: React.FC = () => {
   const [context, setContext] = useState<UserTenantContext | null>(null);
   const [loading, setLoading] = useState(true);
-  const [abaAtiva, setAbaAtiva] = useState<'JORNADA' | 'COLABORADORES' | 'AUDITORIA' | 'SISTEMA'>('JORNADA');
+  const [abaAtiva, setAbaAtiva] = useState<
+    'ATENDIMENTOS' | 'CLIENTES_VEICULOS' | 'JORNADA' | 'COLABORADORES' | 'AUDITORIA' | 'SISTEMA'
+  >('ATENDIMENTOS');
 
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [auditorias, setAuditorias] = useState<RegistroAuditoria[]>([]);
@@ -83,7 +89,7 @@ export const App: React.FC = () => {
       <Header context={context} onLogout={handleLogout} />
 
       <main style={{ flex: 1, padding: '0 24px 32px 24px', maxWidth: '1440px', width: '100%', margin: '0 auto' }}>
-        {/* KPI Cards — Resumo da Fundação */}
+        {/* KPI Cards — Resumo da Oficina */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
@@ -191,19 +197,34 @@ export const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Tab Selector */}
+        {/* Tab Navigation */}
         <div style={{
           display: 'flex',
           gap: '8px',
           borderBottom: '1px solid var(--border-subtle)',
           paddingBottom: '12px',
           marginBottom: '20px',
+          overflowX: 'auto',
         }}>
+          <button
+            onClick={() => setAbaAtiva('ATENDIMENTOS')}
+            className={`btn ${abaAtiva === 'ATENDIMENTOS' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            <ClipboardList size={16} /> Atendimentos & Recepção (HU-008/009)
+          </button>
+
+          <button
+            onClick={() => setAbaAtiva('CLIENTES_VEICULOS')}
+            className={`btn ${abaAtiva === 'CLIENTES_VEICULOS' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            <Car size={16} /> Clientes & Veículos (HU-006/007)
+          </button>
+
           <button
             onClick={() => setAbaAtiva('JORNADA')}
             className={`btn ${abaAtiva === 'JORNADA' ? 'btn-primary' : 'btn-secondary'}`}
           >
-            <Layers size={16} /> Jornada Operacional da Oficina
+            <Layers size={16} /> Visão da Jornada Geral
           </button>
 
           <button
@@ -229,6 +250,10 @@ export const App: React.FC = () => {
         </div>
 
         {/* Tab Content */}
+        {abaAtiva === 'ATENDIMENTOS' && <AtendimentosTab />}
+
+        {abaAtiva === 'CLIENTES_VEICULOS' && <ClientesVeiculosTab />}
+
         {abaAtiva === 'JORNADA' && <JornadaVisualizer />}
 
         {abaAtiva === 'COLABORADORES' && (
@@ -242,13 +267,13 @@ export const App: React.FC = () => {
         {abaAtiva === 'SISTEMA' && (
           <div className="glass-panel" style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px' }}>
-              Fundação Técnica Implementada (ENT-001)
+              Fundação Técnica e Módulos Operacionais (ENT-001 & ENT-002)
             </h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '20px' }}>
               Parâmetros e diretrizes ativas no backend e banco de dados do Vortex Auto.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
               <div style={{
                 background: 'rgba(255,255,255,0.02)',
                 border: '1px solid var(--border-subtle)',
@@ -259,7 +284,7 @@ export const App: React.FC = () => {
                   Isolamento de Dados Multi-Tenant
                 </div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Implementado com defesa em profundidade: validação estrita de token JWT, injeção obrigatória de <code>empresa_id</code> em todas as requisições e isolamento referencial no PostgreSQL.
+                  Defesa em profundidade: validação estrita de token JWT, injeção obrigatória de <code>empresa_id</code> em todas as queries e restrições referenciais no PostgreSQL.
                 </p>
               </div>
 
@@ -270,10 +295,10 @@ export const App: React.FC = () => {
                 padding: '16px',
               }}>
                 <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '8px' }}>
-                  Proteção por Idempotência (HU-002)
+                  Eixo Central: Atendimento & Medições
                 </div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Suporte nativo ao cabeçalho <code>Idempotency-Key</code>. Previne confirmações duplicadas de orçamentos, aprovações comerciais e baixas de estoque causadas por cliques duplos ou reenvios de rede.
+                  Geração atômica de código de atendimento legível (ex: <code>AT-2026-0001</code>), medição de odômetro, nível de combustível e checklist de recepção (HU-008/009).
                 </p>
               </div>
 
@@ -284,24 +309,10 @@ export const App: React.FC = () => {
                 padding: '16px',
               }}>
                 <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '8px' }}>
-                  Precisão Monetária e Numérica (DEC-006 / DEC-007)
+                  Próxima Entrega: ENT-003 (Comercial)
                 </div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Configurado para operações com tipos <code>NUMERIC/DECIMAL</code> exatos sem arredondamento impreciso de ponto flutuante.
-                </p>
-              </div>
-
-              <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '16px',
-              }}>
-                <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '8px' }}>
-                  Próxima Entrega: ENT-002 (Cadastros & Recepção)
-                </div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Histórias HU-006 a HU-009: Cadastro de Clientes, Veículos por placa/chassi e Abertura formal do Atendimento inicial com medições.
+                  Histórias HU-010 a HU-013: Diagnóstico Técnico e Orçamento Versionado com Aprovação/Recusa individual por item.
                 </p>
               </div>
             </div>
