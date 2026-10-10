@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import dotenv from 'dotenv';
 import { randomUUID } from 'crypto';
 import { authRoutes } from './routes/auth.routes.js';
@@ -33,6 +35,16 @@ await app.register(jwt, {
   secret: process.env.JWT_SECRET || 'vortex_auto_default_dev_secret_key_2026',
 });
 
+// Hardening de Segurança (DOC-006): Proteção contra brute-force e cabeçalhos HTTP
+await app.register(helmet, {
+  contentSecurityPolicy: false,
+});
+
+await app.register(rateLimit, {
+  max: 1000,
+  timeWindow: '1 minute',
+});
+
 // Hook para gerar ID de correlação para rastreabilidade (DOC-006, DOC-013)
 app.addHook('onRequest', async (request, reply) => {
   const correlacaoId = (request.headers['x-correlation-id'] as string) || randomUUID();
@@ -45,7 +57,8 @@ app.get('/api/health', async () => {
   return {
     status: 'online',
     aplicacao: 'Vortex Auto API',
-    versao: '0.6.0',
+    versao: '1.0.0',
+    ambiente: process.env.NODE_ENV || 'production',
     timestamp: new Date().toISOString(),
   };
 });
