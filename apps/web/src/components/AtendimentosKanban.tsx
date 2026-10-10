@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ClipboardList,
   Stethoscope,
@@ -16,6 +16,7 @@ import {
   DollarSign,
   AlertTriangle,
   Plus,
+  MoveHorizontal,
 } from 'lucide-react';
 import { Atendimento } from '../types';
 
@@ -141,6 +142,48 @@ export const AtendimentosKanban: React.FC<AtendimentosKanbanProps> = ({
   const [draggedAtend, setDraggedAtend] = useState<Atendimento | null>(null);
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
   const [mensagemRegra, setMensagemRegra] = useState<string | null>(null);
+
+  // Dupla barra de rolagem (Topo e Rodapé sincronizados)
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const boardScrollRef = useRef<HTMLDivElement>(null);
+  const [scrollWidthReal, setScrollWidthReal] = useState<number>(1950);
+  const isSyncingTopRef = useRef<boolean>(false);
+  const isSyncingBottomRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    const updateScrollWidth = () => {
+      if (boardScrollRef.current) {
+        setScrollWidthReal(boardScrollRef.current.scrollWidth);
+      }
+    };
+
+    updateScrollWidth();
+    window.addEventListener('resize', updateScrollWidth);
+    const timer = setTimeout(updateScrollWidth, 150);
+
+    return () => {
+      window.removeEventListener('resize', updateScrollWidth);
+      clearTimeout(timer);
+    };
+  }, [atendimentos, loading]);
+
+  const handleTopScroll = () => {
+    if (isSyncingTopRef.current || !boardScrollRef.current || !topScrollRef.current) return;
+    isSyncingBottomRef.current = true;
+    boardScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+    requestAnimationFrame(() => {
+      isSyncingBottomRef.current = false;
+    });
+  };
+
+  const handleBoardScroll = () => {
+    if (isSyncingBottomRef.current || !topScrollRef.current || !boardScrollRef.current) return;
+    isSyncingTopRef.current = true;
+    topScrollRef.current.scrollLeft = boardScrollRef.current.scrollLeft;
+    requestAnimationFrame(() => {
+      isSyncingTopRef.current = false;
+    });
+  };
 
   const handleDragStart = (e: React.DragEvent, atend: Atendimento) => {
     setDraggedAtend(atend);
@@ -279,16 +322,62 @@ export const AtendimentosKanban: React.FC<AtendimentosKanbanProps> = ({
         </div>
       )}
 
-      {/* Quadro Kanban Horizontal com Scroll Suave */}
+      {/* Barra de Rolagem Horizontal no Topo (Sincronizada com o Rodapé) */}
       <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+          background: 'rgba(15, 23, 42, 0.55)',
+          padding: '8px 14px',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span
+            style={{
+              fontSize: '0.74rem',
+              color: 'var(--primary)',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <MoveHorizontal size={14} />
+            Navegação Horizontal Rápida (Topo & Rodapé Sincronizados)
+          </span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
+            Rola horizontalmente todas as 6 etapas da esteira
+          </span>
+        </div>
+        <div
+          ref={topScrollRef}
+          onScroll={handleTopScroll}
+          className="kanban-top-scroll"
+          style={{
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            height: '14px',
+          }}
+        >
+          <div style={{ width: `${scrollWidthReal}px`, height: '1px' }} />
+        </div>
+      </div>
+
+      {/* Quadro Kanban Horizontal com Scroll Suave no Rodapé */}
+      <div
+        ref={boardScrollRef}
+        onScroll={handleBoardScroll}
         className="kanban-board-container"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(6, minmax(310px, 1fr))',
           gap: '16px',
           overflowX: 'auto',
-          paddingBottom: '20px',
-          minHeight: '650px',
+          paddingBottom: '16px',
           alignItems: 'start',
         }}
       >
@@ -366,14 +455,18 @@ export const AtendimentosKanban: React.FC<AtendimentosKanbanProps> = ({
                 </span>
               </div>
 
-              {/* Corpo da Coluna (Lista de Cards) */}
+              {/* Corpo da Coluna (Lista de Cards com Scroll Vertical Interno) */}
               <div
+                className="kanban-column-cards"
                 style={{
                   padding: '12px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '12px',
                   flex: 1,
+                  overflowY: 'auto',
+                  maxHeight: 'calc(100vh - 340px)',
+                  minHeight: '380px',
                 }}
               >
                 {loading ? (

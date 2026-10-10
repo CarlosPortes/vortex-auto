@@ -219,3 +219,35 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* Top Scrollbar Styling */
+.kanban-top-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+.kanban-top-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 8px;
+}
+.kanban-top-scroll::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 8px;
+}
+.kanban-top-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* Column Cards Inner Vertical Scrollbar */
+.kanban-column-cards::-webkit-scrollbar {
+  width: 6px;
+}
+.kanban-column-cards::-webkit-scrollbar-track {
+  background: transparent;
+}
+.kanban-column-cards::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+.kanban-column-cards::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+
