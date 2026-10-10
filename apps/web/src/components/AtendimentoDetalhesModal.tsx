@@ -13,8 +13,10 @@ import {
   Car,
   User,
   Check,
+  Wrench,
+  Play,
 } from 'lucide-react';
-import { Atendimento, Diagnostico, VersaoOrcamento } from '../types';
+import { Atendimento, Diagnostico, VersaoOrcamento, OrdemServico } from '../types';
 import { apiRequest } from '../api';
 
 interface AtendimentoDetalhesModalProps {
@@ -28,7 +30,9 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
   onClose,
   onUpdated,
 }) => {
-  const [subAba, setSubAba] = useState<'DIAGNOSTICO' | 'ORCAMENTOS' | 'APROVACAO'>('DIAGNOSTICO');
+  const [subAba, setSubAba] = useState<'DIAGNOSTICO' | 'ORCAMENTOS' | 'APROVACAO' | 'ORDEM_SERVICO'>('DIAGNOSTICO');
+  const [osVinculada, setOsVinculada] = useState<OrdemServico | null>(null);
+  const [planejandoOS, setPlanejandoOS] = useState(false);
 
   // Estado Diagnóstico
   const [diagnosticos, setDiagnosticos] = useState<Diagnostico[]>([]);
@@ -66,9 +70,10 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
 
   const carregarDadosComerciais = async () => {
     setErrorMsg('');
-    const [resDiag, resOrc] = await Promise.all([
+    const [resDiag, resOrc, resOS] = await Promise.all([
       apiRequest<Diagnostico[]>(`/atendimentos/${atendimento.id}/diagnostico`),
       apiRequest<VersaoOrcamento[]>(`/atendimentos/${atendimento.id}/orcamentos`),
+      apiRequest<OrdemServico>(`/os/atendimento/${atendimento.id}`),
     ]);
 
     if (resDiag.sucesso && resDiag.dados) {
@@ -86,11 +91,85 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
         setDecisoesItens(inicial);
       }
     }
+    if (resOS.sucesso && resOS.dados) {
+      setOsVinculada(resOS.dados);
+    } else {
+      setOsVinculada(null);
+    }
   };
 
   useEffect(() => {
     carregarDadosComerciais();
   }, [atendimento.id]);
+
+  // Planejar OS automática a partir dos itens do orçamento
+  const handlePlanejarOSAutomatico = async () => {
+    setPlanejandoOS(true);
+    setErrorMsg('');
+    setSucessoMsg('');
+
+    // Extrair atividades dos itens aprovados do orçamento
+    let atividades: Array<{ descricao: string; itemOrcamentoId?: string; tempoEstimadoMinutos: number }> = [];
+
+    if (versaoSelecionada && versaoSelecionada.itens.length > 0) {
+      atividades = versaoSelecionada.itens
+        .filter((it) => it.decisao === 'APROVADO' || it.decisao === 'PENDENTE')
+        .map((it) => ({
+          descricao: `${it.tipo === 'SERVICO' ? 'Execução' : 'Instalação'}: ${it.descricao}`,
+          itemOrcamentoId: it.id,
+          tempoEstimadoMinutos: it.tipo === 'SERVICO' ? 60 : 30,
+        }));
+    }
+
+    if (atividades.length === 0) {
+      atividades = [
+        { descricao: `Revisão e reparo técnico: ${atendimento.queixaPrincipal}`, tempoEstimadoMinutos: 90 },
+      ];
+    }
+
+    const res = await apiRequest('/os/planejar', {
+      method: 'POST',
+      body: JSON.stringify({
+        atendimentoId: atendimento.id,
+        observacoesTecnicas: `Planejada a partir do atendimento ${atendimento.codigoFormatado}.`,
+        atividades,
+      }),
+    });
+
+    setPlanejandoOS(false);
+    if (res.sucesso) {
+      setSucessoMsg(res.mensagem || 'Ordem de Serviço criada com sucesso!');
+      carregarDadosComerciais();
+      onUpdated();
+    } else {
+      setErrorMsg(res.mensagem || 'Falha ao planejar Ordem de Serviço.');
+    }
+  };
+
+  const handleApontarAtividadeNoModal = async (atividadeId: string, novoStatus: 'EM_EXECUCAO' | 'CONCLUIDA') => {
+    const res = await apiRequest(`/os/atividades/${atividadeId}/apontar`, {
+      method: 'PATCH',
+      body: JSON.stringify({ novoStatus }),
+    });
+
+    if (res.sucesso) {
+      carregarDadosComerciais();
+      onUpdated();
+    } else {
+      setErrorMsg(res.mensagem || 'Erro ao apontar atividade.');
+    }
+  };
+
+  const handleConcluirOSNoModal = async (osId: string) => {
+    const res = await apiRequest(`/os/${osId}/concluir`, { method: 'PATCH' });
+    if (res.sucesso) {
+      setSucessoMsg(res.mensagem || 'Ordem de serviço concluída com sucesso!');
+      carregarDadosComerciais();
+      onUpdated();
+    } else {
+      setErrorMsg(res.mensagem || 'Falha ao concluir OS.');
+    }
+  };
 
   // Salvar Diagnóstico
   const handleSalvarDiagnostico = async (e: React.FormEvent) => {
@@ -302,6 +381,14 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
             style={{ fontSize: '0.84rem', padding: '8px 16px' }}
           >
             <UserCheck size={16} /> 3. Decisão Comercial por Item
+          </button>
+
+          <button
+            onClick={() => setSubAba('ORDEM_SERVICO')}
+            className={`btn ${subAba === 'ORDEM_SERVICO' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ fontSize: '0.84rem', padding: '8px 16px' }}
+          >
+            <Wrench size={16} /> 4. Execução Técnica & OS {osVinculada ? `(${osVinculada.codigoFormatado})` : ''}
           </button>
         </div>
 
@@ -755,6 +842,158 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SUB-ABA 4: ORDEM DE SERVIÇO & EXECUÇÃO TÉCNICA (HU-014 a HU-016) */}
+        {subAba === 'ORDEM_SERVICO' && (
+          <div>
+            {!osVinculada ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '40px 20px',
+                background: 'rgba(255,255,255,0.02)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px dashed var(--border-subtle)',
+              }}>
+                <Wrench size={40} color="var(--primary)" style={{ margin: '0 auto 12px auto' }} />
+                <h4 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '6px' }}>
+                  Nenhuma Ordem de Serviço Planejada
+                </h4>
+                <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', maxWidth: '480px', margin: '0 auto 20px auto' }}>
+                  A Ordem de Serviço consolida as tarefas dos mecânicos e vincula as reservas de peças a serem consumidas do estoque.
+                </p>
+
+                <button
+                  type="button"
+                  disabled={planejandoOS}
+                  onClick={handlePlanejarOSAutomatico}
+                  className="btn btn-primary"
+                  style={{ padding: '10px 20px' }}
+                >
+                  <Wrench size={16} /> {planejandoOS ? 'Planejando OS...' : 'Gerar Ordem de Serviço com Itens Aprovados (HU-014)'}
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Header da OS */}
+                <div style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '18px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary)' }}>
+                        {osVinculada.codigoFormatado}
+                      </span>
+                      <span className={`badge ${
+                        osVinculada.status === 'CONCLUIDA' ? 'badge-green' :
+                        osVinculada.status === 'EM_ANDAMENTO' ? 'badge-amber' : 'badge-purple'
+                      }`}>
+                        {osVinculada.status}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      Mecânico Responsável: <strong>{osVinculada.mecanicoResponsavel || 'Equipe Geral'}</strong> • Criada em: {new Date(osVinculada.criadoEm).toLocaleString('pt-BR')}
+                    </div>
+                  </div>
+
+                  {osVinculada.status !== 'CONCLUIDA' && (
+                    <button
+                      onClick={() => handleConcluirOSNoModal(osVinculada.id)}
+                      className="btn btn-primary"
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <CheckCircle2 size={16} /> Finalizar OS & Liberar P/ Inspeção
+                    </button>
+                  )}
+                </div>
+
+                {/* Progresso */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '6px' }}>
+                    <span>Progresso das Atividades</span>
+                    <span style={{ fontWeight: 700 }}>
+                      {osVinculada.atividades.filter((a) => a.status === 'CONCLUIDA').length} de {osVinculada.atividades.length} concluídas
+                    </span>
+                  </div>
+                  <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${osVinculada.atividades.length > 0 ? (osVinculada.atividades.filter((a) => a.status === 'CONCLUIDA').length / osVinculada.atividades.length) * 100 : 0}%`,
+                      height: '100%',
+                      background: osVinculada.status === 'CONCLUIDA' ? '#10b981' : 'var(--primary)',
+                    }} />
+                  </div>
+                </div>
+
+                {/* Lista de Atividades com Apontamento Rápido */}
+                <div>
+                  <h5 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '10px' }}>Atividades da Oficina:</h5>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {osVinculada.atividades.map((ativ) => (
+                      <div
+                        key={ativ.id}
+                        style={{
+                          padding: '12px 16px',
+                          borderRadius: 'var(--radius-sm)',
+                          background: 'rgba(255,255,255,0.02)',
+                          border: '1px solid var(--border-subtle)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.86rem' }}>{ativ.descricao}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            Estimado: {ativ.tempoEstimadoMinutos} min • Realizado: {ativ.tempoRealizadoMinutos} min • Mecânico: {ativ.mecanico?.nome || 'Atribuído na bancada'}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className={`badge ${
+                            ativ.status === 'CONCLUIDA' ? 'badge-green' :
+                            ativ.status === 'EM_EXECUCAO' ? 'badge-amber' : 'badge-gray'
+                          }`}>
+                            {ativ.status}
+                          </span>
+
+                          {osVinculada.status !== 'CONCLUIDA' && ativ.status !== 'CONCLUIDA' && (
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              {ativ.status !== 'EM_EXECUCAO' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleApontarAtividadeNoModal(ativ.id, 'EM_EXECUCAO')}
+                                  className="btn btn-secondary"
+                                  style={{ padding: '4px 8px', fontSize: '0.72rem', color: '#34d399' }}
+                                  title="Iniciar"
+                                >
+                                  <Play size={12} /> Iniciar
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleApontarAtividadeNoModal(ativ.id, 'CONCLUIDA')}
+                                className="btn btn-primary"
+                                style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+                                title="Concluir"
+                              >
+                                <CheckCircle2 size={12} /> Concluir
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </div>

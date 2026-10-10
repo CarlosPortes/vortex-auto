@@ -169,3 +169,75 @@ export interface VersaoOrcamento {
   itens: ItemOrcamento[];
   decisoes?: DecisaoComercial[];
 }
+
+// -------------------------------------------------------------
+// ENT-004: Tipos de Estoque e Execução Técnica (OS)
+// -------------------------------------------------------------
+export interface Produto {
+  id: string;
+  codigo: string;
+  descricao: string;
+  unidadeMedida: string;
+  precoCusto: number;
+  precoVenda: number;
+  saldoFisico: number;
+  saldoReservado: number;
+  saldoDisponivel: number;
+  estoqueMinimo: number;
+  abaixoMinimo: boolean;
+  ativo: boolean;
+  criadoEm: string;
+}
+
+export interface MovimentoEstoque {
+  id: string;
+  tipo: string;
+  quantidade: number;
+  saldoFisicoAnterior: number;
+  saldoFisicoNovo: number;
+  saldoReservadoAnterior: number;
+  saldoReservadoNovo: number;
+  origemDocumento?: string | null;
+  motivo?: string | null;
+  usuarioNome: string;
+  criadoEm: string;
+}
+
+export interface AtividadeOS {
+  id: string;
+  descricao: string;
+  status: string; // PENDENTE, EM_EXECUCAO, PAUSADA, CONCLUIDA, CANCELADA
+  tempoEstimadoMinutos: number;
+  tempoRealizadoMinutos: number;
+  mecanico?: { id: string; nome: string } | null;
+  motivoPausa?: string | null;
+  iniciadoEm?: string | null;
+  concluidoEm?: string | null;
+}
+
+export interface OrdemServico {
+  id: string;
+  numeroOS: number;
+  codigoFormatado: string;
+  status: string; // PLANEJADA, EM_ANDAMENTO, PAUSADA, CONCLUIDA, CANCELADA
+  dataInicio?: string | null;
+  dataConclusao?: string | null;
+  observacoesTecnicas?: string | null;
+  mecanicoResponsavel?: string | null;
+  atendimento: {
+    id: string;
+    codigoFormatado: string;
+    status: string;
+    queixaPrincipal: string;
+    cliente: { id: string; nomeRazao: string; telefone: string };
+    veiculo: { id: string; placa: string; modelo: string; marca: string };
+  };
+  progresso: {
+    totalAtividades: number;
+    concluidas: number;
+    progressoPercent: number;
+  };
+  atividades: AtividadeOS[];
+  criadoEm: string;
+}
+

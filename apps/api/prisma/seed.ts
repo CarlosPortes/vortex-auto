@@ -249,7 +249,103 @@ async function main() {
     });
   }
 
-  console.log('Seed ENT-002 concluído com sucesso!');
+  // 9. ENT-004: Produtos e Saldo Inicial de Estoque (HU-017 / HU-018)
+  const produtosIniciais = [
+    {
+      codigo: 'PEC-001',
+      descricao: 'Jogo de Pastilhas de Freio Dianteiro Cerâmica - Honda Civic',
+      unidadeMedida: 'JOGO',
+      precoCusto: 160.0,
+      precoVenda: 280.0,
+      saldoFisico: 8,
+      estoqueMinimo: 2,
+    },
+    {
+      codigo: 'PEC-002',
+      descricao: 'Par de Discos de Freio Dianteiro Ventilado 282mm',
+      unidadeMedida: 'PAR',
+      precoCusto: 320.0,
+      precoVenda: 540.0,
+      saldoFisico: 5,
+      estoqueMinimo: 2,
+    },
+    {
+      codigo: 'PEC-003',
+      descricao: 'Fluido de Freio DOT 4 Sintético 500ml',
+      unidadeMedida: 'FRASCO',
+      precoCusto: 28.0,
+      precoVenda: 55.0,
+      saldoFisico: 20,
+      estoqueMinimo: 6,
+    },
+    {
+      codigo: 'LUB-001',
+      descricao: 'Óleo de Motor 5W30 100% Sintético API SP (Litro)',
+      unidadeMedida: 'LITRO',
+      precoCusto: 38.0,
+      precoVenda: 68.0,
+      saldoFisico: 48,
+      estoqueMinimo: 12,
+    },
+    {
+      codigo: 'FIL-001',
+      descricao: 'Filtro de Óleo Lubrificante Blindado',
+      unidadeMedida: 'UN',
+      precoCusto: 22.0,
+      precoVenda: 45.0,
+      saldoFisico: 15,
+      estoqueMinimo: 4,
+    },
+  ];
+
+  for (const prod of produtosIniciais) {
+    const p = await prisma.produto.upsert({
+      where: { empresaId_codigo: { empresaId: empresa.id, codigo: prod.codigo } },
+      update: {
+        descricao: prod.descricao,
+        unidadeMedida: prod.unidadeMedida,
+        precoCusto: prod.precoCusto,
+        precoVenda: prod.precoVenda,
+        estoqueMinimo: prod.estoqueMinimo,
+      },
+      create: {
+        empresaId: empresa.id,
+        codigo: prod.codigo,
+        descricao: prod.descricao,
+        unidadeMedida: prod.unidadeMedida,
+        precoCusto: prod.precoCusto,
+        precoVenda: prod.precoVenda,
+        saldoFisico: prod.saldoFisico,
+        saldoReservado: 0,
+        estoqueMinimo: prod.estoqueMinimo,
+        ativo: true,
+      },
+    });
+
+    const movExistente = await prisma.movimentoEstoque.findFirst({
+      where: { empresaId: empresa.id, produtoId: p.id, tipo: 'SALDO_INICIAL' },
+    });
+
+    if (!movExistente) {
+      await prisma.movimentoEstoque.create({
+        data: {
+          empresaId: empresa.id,
+          produtoId: p.id,
+          tipo: 'SALDO_INICIAL',
+          quantidade: prod.saldoFisico,
+          saldoFisicoAnterior: 0,
+          saldoFisicoNovo: prod.saldoFisico,
+          saldoReservadoAnterior: 0,
+          saldoReservadoNovo: 0,
+          origemDocumento: 'IMPLANTACAO_INICIAL',
+          usuarioId: usuarioAdmin.id,
+          motivo: 'Carga inicial de estoque para demonstração Vortex Auto',
+        },
+      });
+    }
+  }
+
+  console.log('Seed ENT-002 e ENT-004 concluído com sucesso!');
 }
 
 main()

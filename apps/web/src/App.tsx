@@ -9,6 +9,8 @@ import {
   Layers,
   ClipboardList,
   Car,
+  Wrench,
+  Package,
 } from 'lucide-react';
 import { Header } from './components/Header';
 import { JornadaVisualizer } from './components/JornadaVisualizer';
@@ -16,6 +18,8 @@ import { ColaboradoresTab } from './components/ColaboradoresTab';
 import { AuditoriaTab } from './components/AuditoriaTab';
 import { AtendimentosTab } from './components/AtendimentosTab';
 import { ClientesVeiculosTab } from './components/ClientesVeiculosTab';
+import { OrdensServicoTab } from './components/OrdensServicoTab';
+import { EstoqueTab } from './components/EstoqueTab';
 import { LoginModal } from './components/LoginModal';
 import { apiRequest, clearStoredToken } from './api';
 import { UserTenantContext, Colaborador, RegistroAuditoria } from './types';
@@ -24,7 +28,7 @@ export const App: React.FC = () => {
   const [context, setContext] = useState<UserTenantContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [abaAtiva, setAbaAtiva] = useState<
-    'ATENDIMENTOS' | 'CLIENTES_VEICULOS' | 'JORNADA' | 'COLABORADORES' | 'AUDITORIA' | 'SISTEMA'
+    'ATENDIMENTOS' | 'ORDENS_SERVICO' | 'ESTOQUE' | 'CLIENTES_VEICULOS' | 'JORNADA' | 'COLABORADORES' | 'AUDITORIA' | 'SISTEMA'
   >('ATENDIMENTOS');
 
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
@@ -214,6 +218,20 @@ export const App: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setAbaAtiva('ORDENS_SERVICO')}
+            className={`btn ${abaAtiva === 'ORDENS_SERVICO' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            <Wrench size={16} /> Ordens de Serviço (HU-014/015)
+          </button>
+
+          <button
+            onClick={() => setAbaAtiva('ESTOQUE')}
+            className={`btn ${abaAtiva === 'ESTOQUE' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            <Package size={16} /> Estoque & Peças (HU-017/018)
+          </button>
+
+          <button
             onClick={() => setAbaAtiva('CLIENTES_VEICULOS')}
             className={`btn ${abaAtiva === 'CLIENTES_VEICULOS' ? 'btn-primary' : 'btn-secondary'}`}
           >
@@ -251,6 +269,10 @@ export const App: React.FC = () => {
 
         {/* Tab Content */}
         {abaAtiva === 'ATENDIMENTOS' && <AtendimentosTab />}
+
+        {abaAtiva === 'ORDENS_SERVICO' && <OrdensServicoTab />}
+
+        {abaAtiva === 'ESTOQUE' && <EstoqueTab />}
 
         {abaAtiva === 'CLIENTES_VEICULOS' && <ClientesVeiculosTab />}
 

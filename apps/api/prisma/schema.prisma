@@ -35,6 +35,11 @@ model Empresa {
   versoesOrcamento VersaoOrcamento[]
   itensOrcamento   ItemOrcamento[]
   decisoesComerc   DecisaoComercial[]
+  produtos         Produto[]
+  movimentosEst    MovimentoEstoque[]
+  reservasEst      ReservaEstoque[]
+  ordensServico    OrdemServico[]
+  atividadesOS     AtividadeOS[]
 
   @@map("empresas")
 }
@@ -48,9 +53,10 @@ model Unidade {
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  empresa      Empresa                 @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  vinculos     VinculoUsuarioEmpresa[]
-  atendimentos Atendimento[]
+  empresa       Empresa                 @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  vinculos      VinculoUsuarioEmpresa[]
+  atendimentos  Atendimento[]
+  ordensServico OrdemServico[]
 
   @@map("unidades")
 }
@@ -73,6 +79,9 @@ model Usuario {
   atendimentosAbertos Atendimento[]           @relation("UsuarioAberturaAtendimento")
   diagnosticos        Diagnostico[]           @relation("TecnicoDiagnostico")
   decisoesRegistradas DecisaoComercial[]      @relation("UsuarioDecisaoComercial")
+  ordensResponsaveis  OrdemServico[]          @relation("MecanicoResponsavelOS")
+  atividadesExec      AtividadeOS[]           @relation("MecanicoAtividade")
+  movimentosEstoque   MovimentoEstoque[]
 
   @@map("usuarios")
 }
@@ -284,7 +293,7 @@ model Atendimento {
   empresaId         String    @map("empresa_id")
   unidadeId         String    @map("unidade_id")
   numeroSequencial  Int       @map("numero_sequencial")
-  codigoFormatado   String    @map("codigo_formatado") // Ex: AT-2026-0001
+  codigoFormatado   String    @map("codigo_formatado")
   clienteId         String    @map("cliente_id")
   veiculoId         String    @map("veiculo_id")
   usuarioAberturaId String    @map("usuario_abertura_id")
@@ -296,14 +305,16 @@ model Atendimento {
   criadoEm          DateTime  @default(now()) @map("criado_em")
   atualizadoEm      DateTime  @updatedAt @map("atualizado_em")
 
-  empresa         Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  unidade         Unidade         @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
-  cliente         Cliente         @relation(fields: [clienteId], references: [id])
-  veiculo         Veiculo         @relation(fields: [veiculoId], references: [id])
-  usuarioAbertura Usuario         @relation("UsuarioAberturaAtendimento", fields: [usuarioAberturaId], references: [id])
+  empresa         Empresa          @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  unidade         Unidade          @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  cliente         Cliente          @relation(fields: [clienteId], references: [id])
+  veiculo         Veiculo          @relation(fields: [veiculoId], references: [id])
+  usuarioAbertura Usuario          @relation("UsuarioAberturaAtendimento", fields: [usuarioAberturaId], references: [id])
   medicao         MedicaoVeiculo?
   diagnosticos    Diagnostico[]
   orcamento       Orcamento?
+  ordemServico    OrdemServico?
+  reservasEstoque ReservaEstoque[]
 
   @@unique([empresaId, numeroSequencial])
   @@index([empresaId, status])
@@ -341,7 +352,7 @@ model Diagnostico {
   relatoTecnico           String   @map("relato_tecnico")
   constatacoes            String
   causaRaiz               String?  @map("causa_raiz")
-  conclusao               String   @default("PROCEDE_REPARO") // PROCEDE_REPARO, INCONCLUSIVO, etc.
+  conclusao               String   @default("PROCEDE_REPARO")
   procedimentoRecomendado String?  @map("procedimento_recomendado")
   criadoEm                DateTime @default(now()) @map("criado_em")
   atualizadoEm            DateTime @updatedAt @map("atualizado_em")
@@ -355,7 +366,7 @@ model Diagnostico {
 }
 
 // -------------------------------------------------------------
-// DOC-001, DOC-003, DOC-008, HU-011 a HU-013: Orçamento Versionado e Imutável
+// DOC-001, DOC-003, DOC-008, HU-011 a HU-013: Orçamento Versionado
 // -------------------------------------------------------------
 model Orcamento {
   id            String   @id @default(uuid())
@@ -375,8 +386,8 @@ model VersaoOrcamento {
   id                    String    @id @default(uuid())
   empresaId             String    @map("empresa_id")
   orcamentoId           String    @map("orcamento_id")
-  numeroVersao          Int       @map("numero_versao") // 1, 2, 3...
-  status                String    @default("RASCUNHO") // RASCUNHO, APRESENTADA, APROVADA_PARCIAL, APROVADA_TOTAL, RECUSADA, CANCELADA
+  numeroVersao          Int       @map("numero_versao")
+  status                String    @default("RASCUNHO")
   validadeDias          Int       @default(10) @map("validade_dias")
   apresentadaEm         DateTime? @map("apresentada_em")
   observacoesComerciais String?   @map("observacoes_comerciais")
@@ -398,19 +409,19 @@ model VersaoOrcamento {
 }
 
 model ItemOrcamento {
-  id                  String   @id @default(uuid())
-  empresaId           String   @map("empresa_id")
-  versaoOrcamentoId   String   @map("versao_orcamento_id")
-  tipo                String   @default("SERVICO") // PECA ou SERVICO
-  descricao           String
-  quantidade          Decimal  @default(1.0) @db.Decimal(12, 3)
-  unidadeMedida       String   @default("UN") @map("unidade_medida")
-  valorUnitario       Decimal  @default(0.0) @map("valor_unitario") @db.Decimal(12, 2)
-  valorDesconto       Decimal  @default(0.0) @map("valor_desconto") @db.Decimal(12, 2)
-  valorTotal          Decimal  @default(0.0) @map("valor_total") @db.Decimal(12, 2)
-  decisao             String   @default("PENDENTE") // PENDENTE, APROVADO, RECUSADO, RETIRADO
-  justificativaDecisao String? @map("justificativa_decisao")
-  criadoEm            DateTime @default(now()) @map("criado_em")
+  id                   String   @id @default(uuid())
+  empresaId            String   @map("empresa_id")
+  versaoOrcamentoId    String   @map("versao_orcamento_id")
+  tipo                 String   @default("SERVICO")
+  descricao            String
+  quantidade           Decimal  @default(1.0) @db.Decimal(12, 3)
+  unidadeMedida        String   @default("UN") @map("unidade_medida")
+  valorUnitario        Decimal  @default(0.0) @map("valor_unitario") @db.Decimal(12, 2)
+  valorDesconto        Decimal  @default(0.0) @map("valor_desconto") @db.Decimal(12, 2)
+  valorTotal           Decimal  @default(0.0) @map("valor_total") @db.Decimal(12, 2)
+  decisao              String   @default("PENDENTE")
+  justificativaDecisao String?  @map("justificativa_decisao")
+  criadoEm             DateTime @default(now()) @map("criado_em")
 
   empresa         Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   versaoOrcamento VersaoOrcamento @relation(fields: [versaoOrcamentoId], references: [id], onDelete: Cascade)
@@ -423,7 +434,7 @@ model DecisaoComercial {
   id                   String   @id @default(uuid())
   empresaId            String   @map("empresa_id")
   versaoOrcamentoId    String   @map("versao_orcamento_id")
-  canal                String   @default("WHATSAPP") // PRESENCIAL, WHATSAPP, TELEFONE, EMAIL, OUTRO
+  canal                String   @default("WHATSAPP")
   autorizadorNome      String   @map("autorizador_nome")
   documentoAutorizador String?  @map("documento_autorizador")
   evidenciaTexto       String?  @map("evidencia_texto")
@@ -437,4 +448,128 @@ model DecisaoComercial {
 
   @@index([empresaId, versaoOrcamentoId])
   @@map("decisoes_comerciais")
+}
+
+// -------------------------------------------------------------
+// DOC-002, DOC-004, DOC-008 e HU-017/018: Estoque e Produtos
+// -------------------------------------------------------------
+model Produto {
+  id             String   @id @default(uuid())
+  empresaId      String   @map("empresa_id")
+  codigo         String
+  descricao      String
+  unidadeMedida  String   @default("UN") @map("unidade_medida")
+  precoCusto     Decimal  @default(0.0) @map("preco_custo") @db.Decimal(12, 2)
+  precoVenda     Decimal  @default(0.0) @map("preco_venda") @db.Decimal(12, 2)
+  saldoFisico    Decimal  @default(0.0) @map("saldo_fisico") @db.Decimal(12, 3)
+  saldoReservado Decimal  @default(0.0) @map("saldo_reservado") @db.Decimal(12, 3)
+  estoqueMinimo  Decimal  @default(0.0) @map("estoque_minimo") @db.Decimal(12, 3)
+  ativo          Boolean  @default(true)
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  atualizadoEm   DateTime @updatedAt @map("atualizado_em")
+
+  empresa    Empresa            @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  movimentos MovimentoEstoque[]
+  reservas   ReservaEstoque[]
+
+  @@unique([empresaId, codigo])
+  @@index([empresaId, descricao])
+  @@map("produtos")
+}
+
+model MovimentoEstoque {
+  id                     String   @id @default(uuid())
+  empresaId              String   @map("empresa_id")
+  produtoId              String   @map("produto_id")
+  tipo                   String   // ENTRADA, RESERVA, LIBERACAO_RESERVA, CONSUMO, DEVOLUCAO, AJUSTE_POSITIVO, AJUSTE_NEGATIVO
+  quantidade             Decimal  @db.Decimal(12, 3)
+  saldoFisicoAnterior    Decimal  @map("saldo_fisico_anterior") @db.Decimal(12, 3)
+  saldoFisicoNovo        Decimal  @map("saldo_fisico_novo") @db.Decimal(12, 3)
+  saldoReservadoAnterior Decimal  @map("saldo_reservado_anterior") @db.Decimal(12, 3)
+  saldoReservadoNovo     Decimal  @map("saldo_reservado_novo") @db.Decimal(12, 3)
+  origemDocumento        String?  @map("origem_documento")
+  usuarioId              String   @map("usuario_id")
+  motivo                 String?
+  criadoEm               DateTime @default(now()) @map("criado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  produto Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([empresaId, produtoId])
+  @@map("movimentos_estoque")
+}
+
+model ReservaEstoque {
+  id             String   @id @default(uuid())
+  empresaId      String   @map("empresa_id")
+  produtoId      String   @map("produto_id")
+  atendimentoId  String   @map("atendimento_id")
+  ordemServicoId String?  @map("ordem_servico_id")
+  quantidade     Decimal  @db.Decimal(12, 3)
+  status         String   @default("ATIVA") // ATIVA, CONSUMIDA, CANCELADA
+  criadoEm       DateTime @default(now()) @map("criado_em")
+
+  empresa      Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  produto      Produto       @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  atendimento  Atendimento   @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+  ordemServico OrdemServico? @relation(fields: [ordemServicoId], references: [id], onDelete: SetNull)
+
+  @@index([empresaId, produtoId])
+  @@index([empresaId, atendimentoId])
+  @@map("reservas_estoque")
+}
+
+// -------------------------------------------------------------
+// DOC-001, DOC-003, DOC-007, DOC-008, HU-014 e HU-015: Ordem de Serviço
+// -------------------------------------------------------------
+model OrdemServico {
+  id                    String    @id @default(uuid())
+  empresaId             String    @map("empresa_id")
+  unidadeId             String    @map("unidade_id")
+  atendimentoId         String    @unique @map("atendimento_id") // No máximo uma OS por atendimento no MVP
+  numeroOS              Int       @map("numero_os")
+  codigoFormatado       String    @map("codigo_formatado") // Ex: OS-2026-0001
+  status                String    @default("PLANEJADA") // PLANEJADA, EM_ANDAMENTO, PAUSADA, CONCLUIDA, CANCELADA
+  responsavelMecanicoId String?   @map("responsavel_mecanico_id")
+  dataInicio            DateTime? @map("data_inicio")
+  dataConclusao         DateTime? @map("data_conclusao")
+  observacoesTecnicas   String?   @map("observacoes_tecnicas")
+  criadoEm              DateTime  @default(now()) @map("criado_em")
+  atualizadoEm          DateTime  @updatedAt @map("atualizado_em")
+
+  empresa             Empresa          @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  unidade             Unidade          @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  atendimento         Atendimento      @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+  responsavelMecanico Usuario?         @relation("MecanicoResponsavelOS", fields: [responsavelMecanicoId], references: [id], onDelete: SetNull)
+  atividades          AtividadeOS[]
+  reservasEstoque     ReservaEstoque[]
+
+  @@unique([empresaId, numeroOS])
+  @@index([empresaId, status])
+  @@map("ordens_servico")
+}
+
+model AtividadeOS {
+  id                    String    @id @default(uuid())
+  empresaId             String    @map("empresa_id")
+  ordemServicoId        String    @map("ordem_servico_id")
+  itemOrcamentoId       String?   @map("item_orcamento_id")
+  descricao             String
+  status                String    @default("PENDENTE") // PENDENTE, EM_EXECUCAO, PAUSADA, CONCLUIDA, CANCELADA
+  mecanicoId            String?   @map("mecanico_id")
+  tempoEstimadoMinutos  Int       @default(60) @map("tempo_estimado_minutos")
+  tempoRealizadoMinutos Int       @default(0) @map("tempo_realizado_minutos")
+  iniciadoEm            DateTime? @map("iniciado_em")
+  concluidoEm           DateTime? @map("concluido_em")
+  motivoPausa           String?   @map("motivo_pausa")
+  criadoEm              DateTime  @default(now()) @map("criado_em")
+  atualizadoEm          DateTime  @updatedAt @map("atualizado_em")
+
+  empresa      Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  ordemServico OrdemServico @relation(fields: [ordemServicoId], references: [id], onDelete: Cascade)
+  mecanico     Usuario?     @relation("MecanicoAtividade", fields: [mecanicoId], references: [id], onDelete: SetNull)
+
+  @@index([empresaId, ordemServicoId])
+  @@map("atividades_os")
 }
