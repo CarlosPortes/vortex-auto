@@ -18,6 +18,8 @@ import {
   ShieldCheck,
   DollarSign,
   KeyRound,
+  Truck,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   Atendimento,
@@ -27,6 +29,8 @@ import {
   InspecaoQualidade,
   Cobranca,
   EntregaVeiculo,
+  ServicoTerceiro,
+  GarantiaAtendimento,
 } from '../types';
 import { apiRequest } from '../api';
 
@@ -42,7 +46,7 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
   onUpdated,
 }) => {
   const [subAba, setSubAba] = useState<
-    'DIAGNOSTICO' | 'ORCAMENTOS' | 'APROVACAO' | 'ORDEM_SERVICO' | 'INSPECAO' | 'FINANCEIRO_ENTREGA'
+    'DIAGNOSTICO' | 'ORCAMENTOS' | 'APROVACAO' | 'ORDEM_SERVICO' | 'INSPECAO' | 'FINANCEIRO_ENTREGA' | 'COMPLEMENTOS_GARANTIA'
   >('DIAGNOSTICO');
   const [osVinculada, setOsVinculada] = useState<OrdemServico | null>(null);
   const [planejandoOS, setPlanejandoOS] = useState(false);
@@ -73,6 +77,27 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
   const [entObs, setEntObs] = useState('');
   const [entMotivoDebito, setEntMotivoDebito] = useState('');
   const [salvandoEnt, setSalvandoEnt] = useState(false);
+
+  // Estados ENT-006: Serviços de Terceiros e Garantias
+  const [servicosTerceiros, setServicosTerceiros] = useState<ServicoTerceiro[]>([]);
+  const [garantiasOrigem, setGarantiasOrigem] = useState<GarantiaAtendimento[]>([]);
+
+  // Form Terceirização (HU-025)
+  const [tercFornecedor, setTercFornecedor] = useState('');
+  const [tercDescricao, setTercDescricao] = useState('');
+  const [tercCusto, setTercCusto] = useState<number>(0);
+  const [tercCobrado, setTercCobrado] = useState<number>(0);
+  const [tercDataRetorno, setTercDataRetorno] = useState('');
+  const [tercObs, setTercObs] = useState('');
+  const [salvandoTerc, setSalvandoTerc] = useState(false);
+
+  // Form Garantia (HU-023)
+  const [garReclamacao, setGarReclamacao] = useState('');
+  const [garParecer, setGarParecer] = useState('');
+  const [garDecisao, setGarDecisao] = useState<'COBERTA_TOTAL' | 'COBERTA_PARCIAL' | 'RECUSADA'>('COBERTA_TOTAL');
+  const [garJustificativa, setGarJustificativa] = useState('');
+  const [garItensStr, setGarItensStr] = useState('');
+  const [salvandoGar, setSalvandoGar] = useState(false);
 
   // Estado Diagnóstico
   const [diagnosticos, setDiagnosticos] = useState<Diagnostico[]>([]);
@@ -110,13 +135,14 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
 
   const carregarDadosComerciais = async () => {
     setErrorMsg('');
-    const [resDiag, resOrc, resOS, resInsp, resCob, resEnt] = await Promise.all([
+    const [resDiag, resOrc, resOS, resInsp, resCob, resEnt, resDetalhe] = await Promise.all([
       apiRequest<Diagnostico[]>(`/atendimentos/${atendimento.id}/diagnostico`),
       apiRequest<VersaoOrcamento[]>(`/atendimentos/${atendimento.id}/orcamentos`),
       apiRequest<OrdemServico>(`/os/atendimento/${atendimento.id}`),
       apiRequest<InspecaoQualidade[]>(`/atendimentos/${atendimento.id}/inspecoes`),
       apiRequest<Cobranca>(`/atendimentos/${atendimento.id}/cobranca`),
       apiRequest<EntregaVeiculo>(`/atendimentos/${atendimento.id}/entrega`),
+      apiRequest<any>(`/atendimentos/${atendimento.id}`),
     ]);
 
     if (resDiag.sucesso && resDiag.dados) {
@@ -152,6 +178,83 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
       setEntrega(resEnt.dados);
     } else {
       setEntrega(null);
+    }
+    if (resDetalhe.sucesso && resDetalhe.dados) {
+      if (resDetalhe.dados.servicosTerceiros) {
+        setServicosTerceiros(resDetalhe.dados.servicosTerceiros);
+      }
+      if (resDetalhe.dados.garantiasOrigem) {
+        setGarantiasOrigem(resDetalhe.dados.garantiasOrigem);
+      }
+    }
+  };
+
+  const handleCadastrarServicoTerceiro = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSalvandoTerc(true);
+    setErrorMsg('');
+
+    const res = await apiRequest(`/atendimentos/${atendimento.id}/servicos-terceiros`, {
+      method: 'POST',
+      body: JSON.stringify({
+        atendimentoId: atendimento.id,
+        fornecedorNome: tercFornecedor,
+        descricaoServico: tercDescricao,
+        valorCusto: Number(tercCusto),
+        valorCobradoCliente: Number(tercCobrado),
+        dataRetornoPrevista: tercDataRetorno ? tercDataRetorno : undefined,
+        observacoes: tercObs || undefined,
+      }),
+    });
+
+    setSalvandoTerc(false);
+    if (res.sucesso) {
+      setSucessoMsg('Serviço de terceiro registrado com sucesso!');
+      setTercFornecedor('');
+      setTercDescricao('');
+      setTercCusto(0);
+      setTercCobrado(0);
+      setTercDataRetorno('');
+      setTercObs('');
+      carregarDadosComerciais();
+    } else {
+      setErrorMsg(res.mensagem || 'Falha ao registrar serviço de terceiro.');
+    }
+  };
+
+  const handleRegistrarGarantia = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSalvandoGar(true);
+    setErrorMsg('');
+
+    const itensCobertos = garItensStr
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    const res = await apiRequest<any>(`/atendimentos/${atendimento.id}/garantia`, {
+      method: 'POST',
+      body: JSON.stringify({
+        atendimentoOrigemId: atendimento.id,
+        reclamacaoCliente: garReclamacao,
+        parecerTecnico: garParecer,
+        decisao: garDecisao,
+        justificativaDecisao: garJustificativa,
+        itensCobertos,
+      }),
+    });
+
+    setSalvandoGar(false);
+    if (res.sucesso) {
+      setSucessoMsg(res.mensagem || 'Garantia registrada com sucesso!');
+      setGarReclamacao('');
+      setGarParecer('');
+      setGarJustificativa('');
+      setGarItensStr('');
+      carregarDadosComerciais();
+      onUpdated();
+    } else {
+      setErrorMsg(res.mensagem || 'Falha ao registrar garantia.');
     }
   };
 
@@ -571,6 +674,14 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
             style={{ fontSize: '0.84rem', padding: '8px 16px' }}
           >
             <KeyRound size={16} /> 6. Cobrança & Entrega {entrega ? '✓' : ''}
+          </button>
+
+          <button
+            onClick={() => setSubAba('COMPLEMENTOS_GARANTIA')}
+            className={`btn ${subAba === 'COMPLEMENTOS_GARANTIA' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ fontSize: '0.84rem', padding: '8px 16px' }}
+          >
+            <Truck size={16} /> 7. Terceiros & Garantia ({servicosTerceiros.length + garantiasOrigem.length})
           </button>
         </div>
 
@@ -1537,6 +1648,262 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
                     </button>
                   </div>
                 </form>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* SUB-ABA 7: SERVIÇOS DE TERCEIROS E GARANTIA (ENT-006 / HU-023 e HU-025) */}
+        {subAba === 'COMPLEMENTOS_GARANTIA' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Seção 1: Serviços de Terceiros e Retíficas */}
+            <div className="glass-panel" style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Truck size={18} /> Serviços Externos & Retíficas Parceiras (HU-025)
+                </h4>
+                <span className="badge badge-blue">
+                  {servicosTerceiros.length} serviço(s) registrado(s)
+                </span>
+              </div>
+
+              {servicosTerceiros.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                  {servicosTerceiros.map((st) => (
+                    <div
+                      key={st.id}
+                      style={{
+                        padding: '12px 16px',
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-sm)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>
+                          {st.fornecedorNome} — <span style={{ color: 'var(--primary)' }}>{st.descricaoServico}</span>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          Custo: <strong style={{ color: '#cbd5e1' }}>R$ {Number(st.valorCusto).toFixed(2)}</strong> | Cobrado do Cliente: <strong style={{ color: '#34d399' }}>R$ {Number(st.valorCobradoCliente).toFixed(2)}</strong>
+                          {st.dataRetornoPrevista && ` | Previsão: ${new Date(st.dataRetornoPrevista).toLocaleDateString('pt-BR')}`}
+                        </div>
+                      </div>
+
+                      <span
+                        className={`badge ${
+                          st.status === 'RECEBIDO' ? 'badge-green' : st.status === 'ENVIADO' ? 'badge-blue' : 'badge-amber'
+                        }`}
+                      >
+                        {st.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Formulário Novo Envio para Terceiro */}
+              <form onSubmit={handleCadastrarServicoTerceiro} style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(255,255,255,0.01)', padding: '16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  Registrar Novo Envio Externo (Ex: Retífica, Torneiro, Reparo de Módulo)
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Fornecedor / Parceiro *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Retífica ABC de Motores"
+                      value={tercFornecedor}
+                      onChange={(e) => setTercFornecedor(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Serviço Solicitado *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Plainamento e brunimento de bloco"
+                      value={tercDescricao}
+                      onChange={(e) => setTercDescricao(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Custo do Fornecedor (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={tercCusto}
+                      onChange={(e) => setTercCusto(Number(e.target.value))}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Valor Cobrado do Cliente (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={tercCobrado}
+                      onChange={(e) => setTercCobrado(Number(e.target.value))}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                  <button type="submit" disabled={salvandoTerc} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.84rem' }}>
+                    <Plus size={14} /> {salvandoTerc ? 'Enviando...' : 'Cadastrar Serviço de Terceiro'}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Seção 2: Gestão de Garantia e Retorno de Atendimento (HU-023) */}
+            <div className="glass-panel" style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--accent-amber)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShieldAlert size={18} /> Avaliação de Garantia & Retorno do Veículo (HU-023)
+                </h4>
+                <span className="badge badge-purple">
+                  {garantiasOrigem.length} garantia(s) registrada(s)
+                </span>
+              </div>
+
+              {/* Lista de Garantias Já Registradas */}
+              {garantiasOrigem.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                  {garantiasOrigem.map((g) => (
+                    <div
+                      key={g.id}
+                      style={{
+                        padding: '14px',
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-sm)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--accent-amber)' }}>{g.codigoFormatado}</span>
+                        <span
+                          className={`badge ${
+                            g.decisao === 'COBERTA_TOTAL' ? 'badge-green' : g.decisao === 'COBERTA_PARCIAL' ? 'badge-amber' : 'badge-red'
+                          }`}
+                        >
+                          {g.decisao}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text)' }}>
+                        <strong>Reclamação do Cliente:</strong> {g.reclamacaoCliente}
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                        <strong>Parecer Técnico:</strong> {g.parecerTecnico}
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--primary)', marginTop: '2px' }}>
+                        {g.atendimentoGarantia?.codigoFormatado ? (
+                          <span>✓ Novo Atendimento Aberto em Garantia: <strong>{g.atendimentoGarantia.codigoFormatado}</strong></span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>Garantia Recusada (Sem abertura de atendimento em cortesia)</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Formulário de Acionamento de Garantia */}
+              {atendimento.status === 'ENTREGUE' ? (
+                <form onSubmit={handleRegistrarGarantia} style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(255,255,255,0.01)', padding: '16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-amber)' }}>
+                    Acionar Formalização de Garantia para este Veículo Entregue
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Reclamação do Cliente (Sintoma relatado) *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Barulho na frenagem após troca das pastilhas há 15 dias"
+                      value={garReclamacao}
+                      onChange={(e) => setGarReclamacao(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Parecer Técnico da Análise Inicial *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Constatada folga na presilha de assentamento"
+                      value={garParecer}
+                      onChange={(e) => setGarParecer(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Decisão de Cobertura *</label>
+                      <select
+                        value={garDecisao}
+                        onChange={(e) => setGarDecisao(e.target.value as any)}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: '#181b22', color: 'inherit' }}
+                      >
+                        <option value="COBERTA_TOTAL">COBERTA_TOTAL (100% Cortesia da Oficina)</option>
+                        <option value="COBERTA_PARCIAL">COBERTA_PARCIAL (Peça em Garantia)</option>
+                        <option value="RECUSADA">RECUSADA (Mau Uso / Fora do Prazo)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Justificativa Formal da Decisão *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ex: Reparo realizado dentro dos 90 dias legais do CDC"
+                        value={garJustificativa}
+                        onChange={(e) => setGarJustificativa(e.target.value)}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Itens Cobertos (separados por vírgula)</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Jogo de pastilhas, Mão de obra de ajuste"
+                      value={garItensStr}
+                      onChange={(e) => setGarItensStr(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                    <button type="submit" disabled={salvandoGar} className="btn btn-primary" style={{ padding: '8px 20px', background: 'var(--accent-amber)' }}>
+                      <ShieldCheck size={16} /> {salvandoGar ? 'Formalizando...' : 'Formalizar Decisão de Garantia'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', fontSize: '0.84rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                  ℹ️ O acionamento formal de garantia fica habilitado após a finalização e liberação do atendimento como <strong>ENTREGUE</strong>.
+                </div>
               )}
             </div>
           </div>

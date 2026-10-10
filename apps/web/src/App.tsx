@@ -12,6 +12,7 @@ import {
   Wrench,
   Package,
   DollarSign,
+  TrendingUp,
 } from 'lucide-react';
 import { Header } from './components/Header';
 import { JornadaVisualizer } from './components/JornadaVisualizer';
@@ -22,6 +23,7 @@ import { ClientesVeiculosTab } from './components/ClientesVeiculosTab';
 import { OrdensServicoTab } from './components/OrdensServicoTab';
 import { EstoqueTab } from './components/EstoqueTab';
 import { FinanceiroTab } from './components/FinanceiroTab';
+import { RelatoriosTab } from './components/RelatoriosTab';
 import { LoginModal } from './components/LoginModal';
 import { apiRequest, clearStoredToken } from './api';
 import { UserTenantContext, Colaborador, RegistroAuditoria } from './types';
@@ -30,7 +32,7 @@ export const App: React.FC = () => {
   const [context, setContext] = useState<UserTenantContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [abaAtiva, setAbaAtiva] = useState<
-    'ATENDIMENTOS' | 'ORDENS_SERVICO' | 'ESTOQUE' | 'FINANCEIRO' | 'CLIENTES_VEICULOS' | 'JORNADA' | 'COLABORADORES' | 'AUDITORIA' | 'SISTEMA'
+    'ATENDIMENTOS' | 'ORDENS_SERVICO' | 'ESTOQUE' | 'FINANCEIRO' | 'RELATORIOS' | 'CLIENTES_VEICULOS' | 'JORNADA' | 'COLABORADORES' | 'AUDITORIA' | 'SISTEMA'
   >('ATENDIMENTOS');
 
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
@@ -241,6 +243,13 @@ export const App: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setAbaAtiva('RELATORIOS')}
+            className={`btn ${abaAtiva === 'RELATORIOS' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            <TrendingUp size={16} /> Relatórios & BI (HU-026/027)
+          </button>
+
+          <button
             onClick={() => setAbaAtiva('CLIENTES_VEICULOS')}
             className={`btn ${abaAtiva === 'CLIENTES_VEICULOS' ? 'btn-primary' : 'btn-secondary'}`}
           >
@@ -284,6 +293,8 @@ export const App: React.FC = () => {
         {abaAtiva === 'ESTOQUE' && <EstoqueTab />}
 
         {abaAtiva === 'FINANCEIRO' && <FinanceiroTab />}
+
+        {abaAtiva === 'RELATORIOS' && <RelatoriosTab />}
 
         {abaAtiva === 'CLIENTES_VEICULOS' && <ClientesVeiculosTab />}
 

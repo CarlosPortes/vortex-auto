@@ -4,6 +4,7 @@ import {
   PlanejarOSSchema,
   ApontarAtividadeSchema,
   ConsumirMaterialOSSchema,
+  DevolverMaterialOSSchema,
   PermissaoAcesso,
   StatusOS,
   StatusAtividade,
@@ -587,6 +588,143 @@ export async function osRoutes(app: FastifyInstance) {
       return reply.send({
         sucesso: true,
         mensagem: 'Consumo de material registrado e estoque baixado com sucesso!',
+        dados: {
+          produtoId,
+          saldoFisico: Number(resultado.produto.saldoFisico),
+          saldoReservado: Number(resultado.produto.saldoReservado),
+          saldoDisponivel: Number(resultado.produto.saldoFisico) - Number(resultado.produto.saldoReservado),
+          movimentoId: resultado.movimento.id,
+        },
+      });
+    }
+  );
+
+  /**
+   * POST /api/os/:id/devolver-material
+   * Devolução de sobras de material/peças ao estoque (HU-016 / Regra EST-C03 / DOC-004)
+   * A devolução deve referenciar consumo prévio na OS e não pode exceder o saldo líquido consumido.
+   */
+  app.post(
+    '/:id/devolver-material',
+    { preHandler: [exigirPermissao(PermissaoAcesso.ESTOQUE_CONSUMIR)] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const tenant = request.tenant!;
+      const { id } = request.params as { id: string };
+      const parseResult = DevolverMaterialOSSchema.safeParse({
+        ...(request.body as any),
+        ordemServicoId: id,
+      });
+
+      if (!parseResult.success) {
+        return reply.status(400).send({
+          sucesso: false,
+          mensagem: 'Dados inválidos para devolução de material ao estoque',
+          erros: parseResult.error.errors.map((e) => ({ campo: e.path.join('.'), mensagem: e.message })),
+        });
+      }
+
+      const { produtoId, quantidade, motivo } = parseResult.data;
+
+      const os = await prisma.ordemServico.findFirst({
+        where: { id, empresaId: tenant.empresaId },
+      });
+
+      if (!os) {
+        return reply.status(404).send({ sucesso: false, mensagem: 'Ordem de Serviço não encontrada.' });
+      }
+
+      // Validar histórico de consumo e devoluções prévias desta OS para este produto (EST-C03)
+      const movimentosHistorico = await prisma.movimentoEstoque.findMany({
+        where: {
+          empresaId: tenant.empresaId,
+          produtoId,
+          origemDocumento: os.codigoFormatado,
+        },
+      });
+
+      let totalConsumido = 0;
+      let totalDevolvido = 0;
+      for (const mov of movimentosHistorico) {
+        if (mov.tipo === TipoMovimentoEstoque.CONSUMO) {
+          totalConsumido += Number(mov.quantidade);
+        } else if (mov.tipo === TipoMovimentoEstoque.DEVOLUCAO) {
+          totalDevolvido += Number(mov.quantidade);
+        }
+      }
+
+      const saldoLiquidoConsumido = totalConsumido - totalDevolvido;
+
+      if (saldoLiquidoConsumido <= 0) {
+        return reply.status(400).send({
+          sucesso: false,
+          mensagem: `Não há consumo registrado desta peça na OS ${os.codigoFormatado} disponível para devolução.`,
+        });
+      }
+
+      if (quantidade > saldoLiquidoConsumido) {
+        return reply.status(400).send({
+          sucesso: false,
+          mensagem: `A quantidade informada (${quantidade}) excede o saldo líquido consumido na OS (${saldoLiquidoConsumido}).`,
+        });
+      }
+
+      const resultado = await prisma.$transaction(async (tx) => {
+        const prod = await tx.produto.findUnique({
+          where: { id: produtoId },
+        });
+
+        if (!prod) {
+          throw new Error('PRODUTO_NAO_ENCONTRADO');
+        }
+
+        const saldoFisicoAtual = Number(prod.saldoFisico);
+        const saldoReservadoAtual = Number(prod.saldoReservado);
+        const novoSaldoFisico = saldoFisicoAtual + quantidade;
+
+        const produtoAtualizado = await tx.produto.update({
+          where: { id: prod.id },
+          data: {
+            saldoFisico: novoSaldoFisico,
+          },
+        });
+
+        const movimento = await tx.movimentoEstoque.create({
+          data: {
+            empresaId: tenant.empresaId,
+            produtoId: prod.id,
+            tipo: TipoMovimentoEstoque.DEVOLUCAO,
+            quantidade,
+            saldoFisicoAnterior: saldoFisicoAtual,
+            saldoFisicoNovo: novoSaldoFisico,
+            saldoReservadoAnterior: saldoReservadoAtual,
+            saldoReservadoNovo: saldoReservadoAtual,
+            origemDocumento: os.codigoFormatado,
+            usuarioId: tenant.usuarioId,
+            motivo: motivo || `Devolução de material referente à OS ${os.codigoFormatado}`,
+          },
+        });
+
+        return { produto: produtoAtualizado, movimento };
+      });
+
+      await AuditoriaService.registrar({
+        empresaId: tenant.empresaId,
+        usuarioId: tenant.usuarioId,
+        operacao: TipoOperacaoAuditoria.MOVIMENTACAO_ESTOQUE,
+        entidade: 'OrdemServico',
+        entidadeId: id,
+        detalhes: {
+          acao: 'DEVOLUCAO_MATERIAL',
+          produtoId,
+          quantidade,
+          os: os.codigoFormatado,
+          motivo,
+        },
+      });
+
+      return reply.send({
+        sucesso: true,
+        mensagem: 'Devolução de material registrada e saldo físico estornado ao estoque!',
         dados: {
           produtoId,
           saldoFisico: Number(resultado.produto.saldoFisico),

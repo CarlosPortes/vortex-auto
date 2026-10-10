@@ -189,6 +189,24 @@ export async function atendimentosRoutes(app: FastifyInstance) {
         veiculo: { include: { categoria: true } },
         usuarioAbertura: { select: { id: true, nome: true, email: true } },
         medicao: true,
+        cobranca: {
+          include: {
+            parcelas: true,
+            recebimentos: true,
+          },
+        },
+        entrega: {
+          include: {
+            usuarioEntrega: { select: { id: true, nome: true } },
+          },
+        },
+        garantiasOrigem: {
+          include: {
+            usuarioDecisao: { select: { id: true, nome: true } },
+          },
+        },
+        garantiaGerada: true,
+        servicosTerceiros: true,
       },
     });
 

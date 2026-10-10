@@ -12,6 +12,7 @@ import {
   X,
   Search,
   Layers,
+  RotateCcw,
 } from 'lucide-react';
 import { OrdemServico, AtividadeOS, Produto } from '../types';
 import { apiRequest } from '../api';
@@ -39,6 +40,13 @@ export const OrdensServicoTab: React.FC = () => {
   const [motivoConsumo, setMotivoConsumo] = useState('');
   const [salvandoConsumo, setSalvandoConsumo] = useState(false);
 
+  // Devolução de Peça ao Estoque (HU-016)
+  const [modalDevolucao, setModalDevolucao] = useState(false);
+  const [prodDevolucaoId, setProdDevolucaoId] = useState('');
+  const [qtdDevolucao, setQtdDevolucao] = useState(1);
+  const [motivoDevolucao, setMotivoDevolucao] = useState('');
+  const [salvandoDevolucao, setSalvandoDevolucao] = useState(false);
+
   const [feedbackMsg, setFeedbackMsg] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
 
   const carregarOrdens = async () => {
@@ -64,6 +72,9 @@ export const OrdensServicoTab: React.FC = () => {
       setProdutosDisponiveis(res.dados);
       if (res.dados.length > 0 && !prodConsumoId) {
         setProdConsumoId(res.dados[0].id);
+      }
+      if (res.dados.length > 0 && !prodDevolucaoId) {
+        setProdDevolucaoId(res.dados[0].id);
       }
     }
   };
@@ -138,6 +149,32 @@ export const OrdensServicoTab: React.FC = () => {
       setFeedbackMsg({ tipo: 'erro', texto: res.mensagem || 'Erro ao registrar consumo de peça.' });
     }
     setSalvandoConsumo(false);
+  };
+
+  const handleDevolverPeca = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!osSelecionada || !prodDevolucaoId) return;
+
+    setSalvandoDevolucao(true);
+    const res = await apiRequest(`/os/${osSelecionada.id}/devolver-material`, {
+      method: 'POST',
+      body: JSON.stringify({
+        produtoId: prodDevolucaoId,
+        quantidade: qtdDevolucao,
+        motivo: motivoDevolucao || 'Sobra de peça devolvida ao almoxarifado',
+      }),
+    });
+
+    if (res.sucesso) {
+      setFeedbackMsg({ tipo: 'sucesso', texto: 'Sobra de peça devolvida e estoque estornado com sucesso!' });
+      setModalDevolucao(false);
+      setMotivoDevolucao('');
+      setQtdDevolucao(1);
+      carregarOrdens();
+    } else {
+      setFeedbackMsg({ tipo: 'erro', texto: res.mensagem || 'Erro ao devolver peça ao estoque.' });
+    }
+    setSalvandoDevolucao(false);
   };
 
   const handleConcluirOS = async (osId: string) => {
@@ -587,16 +624,28 @@ export const OrdensServicoTab: React.FC = () => {
                     <Package size={16} color="var(--primary)" /> Consumo e Aplicação de Peças (HU-016)
                   </h4>
                   {osSelecionada.status !== 'CONCLUIDA' && (
-                    <button
-                      onClick={() => {
-                        carregarProdutosParaConsumo();
-                        setModalConsumo(true);
-                      }}
-                      className="btn btn-secondary"
-                      style={{ padding: '6px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      <Plus size={14} /> Registrar Aplicação de Peça
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => {
+                          carregarProdutosParaConsumo();
+                          setModalConsumo(true);
+                        }}
+                        className="btn btn-secondary"
+                        style={{ padding: '6px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Plus size={14} /> Aplicar Peça
+                      </button>
+                      <button
+                        onClick={() => {
+                          carregarProdutosParaConsumo();
+                          setModalDevolucao(true);
+                        }}
+                        className="btn btn-secondary"
+                        style={{ padding: '6px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', borderColor: 'rgba(239, 68, 68, 0.4)', color: '#f87171' }}
+                      >
+                        <RotateCcw size={14} /> Devolver Sobra (HU-016)
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -750,6 +799,84 @@ export const OrdensServicoTab: React.FC = () => {
                 <button type="button" onClick={() => setModalConsumo(false)} className="btn btn-secondary">Cancelar</button>
                 <button type="submit" disabled={salvandoConsumo} className="btn btn-primary">
                   {salvandoConsumo ? 'Baixando...' : 'Confirmar Consumo'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Sub-Modal Devolução de Sobra ao Estoque (HU-016) */}
+      {modalDevolucao && osSelecionada && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1100,
+          padding: '16px',
+        }}>
+          <div className="glass-panel" style={{ maxWidth: '480px', width: '100%', padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f87171', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <RotateCcw size={18} /> Devolução de Sobra de Material (HU-016)
+              </h4>
+              <button onClick={() => setModalDevolucao(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+              Devolve sobras de peças aplicadas previamente nesta OS ({osSelecionada.codigoFormatado}), recompondo o saldo físico no almoxarifado.
+            </p>
+
+            <form onSubmit={handleDevolverPeca} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Peça a Devolver *</label>
+                <select
+                  value={prodDevolucaoId}
+                  onChange={(e) => setProdDevolucaoId(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: '#181b22', color: 'inherit' }}
+                >
+                  {produtosDisponiveis.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      [{p.codigo}] {p.descricao}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Quantidade Devolvida *</label>
+                <input
+                  type="number"
+                  step="0.001"
+                  min="0.001"
+                  required
+                  value={qtdDevolucao}
+                  onChange={(e) => setQtdDevolucao(Number(e.target.value))}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Motivo / Justificativa *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Sobra de kit de reparo não utilizado na montagem"
+                  value={motivoDevolucao}
+                  onChange={(e) => setMotivoDevolucao(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setModalDevolucao(false)} className="btn btn-secondary">Cancelar</button>
+                <button type="submit" disabled={salvandoDevolucao} className="btn btn-primary" style={{ background: '#ef4444' }}>
+                  {salvandoDevolucao ? 'Estornando...' : 'Confirmar Devolução'}
                 </button>
               </div>
             </form>

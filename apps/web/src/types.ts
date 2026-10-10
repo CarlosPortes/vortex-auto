@@ -111,6 +111,11 @@ export interface Atendimento {
   veiculo: Veiculo;
   usuarioAbertura?: { id: string; nome: string; email?: string } | null;
   medicao?: MedicaoVeiculo | null;
+  cobranca?: Cobranca | null;
+  entrega?: EntregaVeiculo | null;
+  garantiasOrigem?: GarantiaAtendimento[];
+  garantiaGerada?: GarantiaAtendimento | null;
+  servicosTerceiros?: ServicoTerceiro[];
 }
 
 // -------------------------------------------------------------
@@ -311,6 +316,94 @@ export interface EntregaVeiculo {
   observacoes?: string | null;
   dataHoraEntrega: string;
   usuarioEntrega?: { id: string; nome: string; email?: string } | null;
+}
+
+// -------------------------------------------------------------
+// ENT-006: Garantias, Terceiros e Relatórios
+// -------------------------------------------------------------
+export interface GarantiaAtendimento {
+  id: string;
+  codigoFormatado: string;
+  numeroSequencial: number;
+  reclamacaoCliente: string;
+  parecerTecnico: string;
+  decisao: 'COBERTA_TOTAL' | 'COBERTA_PARCIAL' | 'RECUSADA';
+  justificativaDecisao: string;
+  itensCobertos: string[];
+  dataDecisao: string;
+  usuarioDecisao?: { id: string; nome: string; email?: string } | null;
+  atendimentoOrigem?: {
+    id: string;
+    codigoFormatado: string;
+    dataEntrada: string;
+    cliente: { id: string; nomeRazao: string; telefone: string };
+    veiculo: { id: string; placa: string; modelo: string; marca: string };
+  };
+  atendimentoGarantia?: {
+    id: string;
+    codigoFormatado: string;
+    status: string;
+    ordemServico?: { id: string; codigoFormatado: string; status: string } | null;
+  } | null;
+  criadoEm: string;
+}
+
+export interface ServicoTerceiro {
+  id: string;
+  atendimentoId: string;
+  fornecedorNome: string;
+  descricaoServico: string;
+  valorCusto: number;
+  valorCobradoCliente: number;
+  status: 'ENVIADO' | 'EM_EXECUCAO' | 'RECEBIDO' | 'CANCELADO';
+  dataEnvio: string;
+  dataRetornoPrevista?: string | null;
+  dataRecebimento?: string | null;
+  observacoes?: string | null;
+  observacoesRetorno?: string | null;
+  atendimento?: {
+    id: string;
+    codigoFormatado: string;
+    cliente?: { id: string; nomeRazao: string };
+    veiculo?: { id: string; placa: string; modelo: string };
+  };
+}
+
+export interface ResumoRelatorio {
+  financeiro: {
+    faturamentoTotalRealizado: number;
+    totalSaldoPendente: number;
+    ticketMedio: number;
+    totalRecebimentos: number;
+  };
+  atendimentos: {
+    total: number;
+    entregues: number;
+    porStatus: Array<{ status: string; total: number }>;
+  };
+  ordensServico: {
+    total: number;
+    concluidas: number;
+    emAndamento: number;
+    taxaConclusaoPercent: number;
+  };
+  servicosTerceiros: {
+    total: number;
+    totalCusto: number;
+    totalCobrado: number;
+    margemBruta: number;
+  };
+  estoque: {
+    totalItensCadastrados: number;
+    itensEstoqueCritico: number;
+    valorTotalEstoqueCusto: number;
+    valorTotalEstoqueVenda: number;
+  };
+  garantias: {
+    total: number;
+    cobertas: number;
+    recusadas: number;
+  };
 }
 
 
