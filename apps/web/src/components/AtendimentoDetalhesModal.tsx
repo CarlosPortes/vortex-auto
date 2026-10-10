@@ -38,16 +38,25 @@ interface AtendimentoDetalhesModalProps {
   atendimento: Atendimento;
   onClose: () => void;
   onUpdated: () => void;
+  initialSubAba?:
+    | 'DIAGNOSTICO'
+    | 'ORCAMENTOS'
+    | 'APROVACAO'
+    | 'ORDEM_SERVICO'
+    | 'INSPECAO'
+    | 'FINANCEIRO_ENTREGA'
+    | 'COMPLEMENTOS_GARANTIA';
 }
 
 export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> = ({
   atendimento,
   onClose,
   onUpdated,
+  initialSubAba = 'DIAGNOSTICO',
 }) => {
   const [subAba, setSubAba] = useState<
     'DIAGNOSTICO' | 'ORCAMENTOS' | 'APROVACAO' | 'ORDEM_SERVICO' | 'INSPECAO' | 'FINANCEIRO_ENTREGA' | 'COMPLEMENTOS_GARANTIA'
-  >('DIAGNOSTICO');
+  >(initialSubAba);
   const [osVinculada, setOsVinculada] = useState<OrdemServico | null>(null);
   const [planejandoOS, setPlanejandoOS] = useState(false);
 
