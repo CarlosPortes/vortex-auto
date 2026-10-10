@@ -13,6 +13,7 @@ import {
 import { Atendimento } from '../types';
 import { apiRequest } from '../api';
 import { NovoAtendimentoModal } from './NovoAtendimentoModal';
+import { AtendimentoDetalhesModal } from './AtendimentoDetalhesModal';
 
 export const AtendimentosTab: React.FC = () => {
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
@@ -20,6 +21,7 @@ export const AtendimentosTab: React.FC = () => {
   const [busca, setBusca] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('TODOS');
   const [showModal, setShowModal] = useState(false);
+  const [atendimentoSelecionado, setAtendimentoSelecionado] = useState<Atendimento | null>(null);
 
   const carregarAtendimentos = async () => {
     setLoading(true);
@@ -217,30 +219,30 @@ export const AtendimentosTab: React.FC = () => {
                 </div>
 
                 {/* Footer and Next Steps */}
-                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px', marginTop: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px', marginTop: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Clock size={12} /> Entrada: {dataFormatada}
+                    <Clock size={12} /> {dataFormatada}
                   </span>
 
-                  {atend.status === 'CONFIRMADO' && (
+                  <div style={{ display: 'flex', gap: '6px' }}>
                     <button
-                      onClick={() => handleAvancarStatus(atend.id, 'EM_DIAGNOSTICO')}
+                      onClick={() => setAtendimentoSelecionado(atend)}
                       className="btn btn-secondary"
                       style={{ fontSize: '0.78rem', padding: '6px 12px' }}
                     >
-                      Iniciar Diagnóstico <ArrowRight size={13} />
+                      Diagnóstico & Orçamento
                     </button>
-                  )}
 
-                  {atend.status === 'EM_DIAGNOSTICO' && (
-                    <button
-                      onClick={() => handleAvancarStatus(atend.id, 'ORCAMENTO_PENDENTE')}
-                      className="btn btn-secondary"
-                      style={{ fontSize: '0.78rem', padding: '6px 12px' }}
-                    >
-                      Gerar Orçamento <ArrowRight size={13} />
-                    </button>
-                  )}
+                    {atend.status === 'CONFIRMADO' && (
+                      <button
+                        onClick={() => handleAvancarStatus(atend.id, 'EM_DIAGNOSTICO')}
+                        className="btn btn-primary"
+                        style={{ fontSize: '0.78rem', padding: '6px 10px' }}
+                      >
+                        Diagnosticar <ArrowRight size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -253,6 +255,16 @@ export const AtendimentosTab: React.FC = () => {
           onClose={() => setShowModal(false)}
           onSuccess={() => {
             setShowModal(false);
+            carregarAtendimentos();
+          }}
+        />
+      )}
+
+      {atendimentoSelecionado && (
+        <AtendimentoDetalhesModal
+          atendimento={atendimentoSelecionado}
+          onClose={() => setAtendimentoSelecionado(null)}
+          onUpdated={() => {
             carregarAtendimentos();
           }}
         />

@@ -22,14 +22,19 @@ model Empresa {
   criadoEm     DateTime @default(now()) @map("criado_em")
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
 
-  unidades       Unidade[]
-  vinculos       VinculoUsuarioEmpresa[]
-  auditorias     RegistroAuditoria[]
-  idempotencias  ChaveIdempotencia[]
-  clientes       Cliente[]
-  veiculos       Veiculo[]
-  vinculosCliVei VinculoClienteVeiculo[]
-  atendimentos   Atendimento[]
+  unidades         Unidade[]
+  vinculos         VinculoUsuarioEmpresa[]
+  auditorias       RegistroAuditoria[]
+  idempotencias    ChaveIdempotencia[]
+  clientes         Cliente[]
+  veiculos         Veiculo[]
+  vinculosCliVei   VinculoClienteVeiculo[]
+  atendimentos     Atendimento[]
+  diagnosticos     Diagnostico[]
+  orcamentos       Orcamento[]
+  versoesOrcamento VersaoOrcamento[]
+  itensOrcamento   ItemOrcamento[]
+  decisoesComerc   DecisaoComercial[]
 
   @@map("empresas")
 }
@@ -66,6 +71,8 @@ model Usuario {
   vinculos            VinculoUsuarioEmpresa[]
   auditorias          RegistroAuditoria[]
   atendimentosAbertos Atendimento[]           @relation("UsuarioAberturaAtendimento")
+  diagnosticos        Diagnostico[]           @relation("TecnicoDiagnostico")
+  decisoesRegistradas DecisaoComercial[]      @relation("UsuarioDecisaoComercial")
 
   @@map("usuarios")
 }
@@ -91,7 +98,7 @@ model VinculoUsuarioEmpresa {
 
 model Perfil {
   id        String   @id @default(uuid())
-  codigo    String   @unique // ADMIN_GERAL, GESTOR, RECEPCAO, TECNICO, INSPETOR, FINANCEIRO
+  codigo    String   @unique
   nome      String
   descricao String?
   criadoEm  DateTime @default(now()) @map("criado_em")
@@ -144,7 +151,7 @@ model RegistroAuditoria {
   empresaId    String   @map("empresa_id")
   unidadeId    String?  @map("unidade_id")
   usuarioId    String?  @map("usuario_id")
-  operacao     String   // LOGIN, CRIACAO, ALTERACAO, etc.
+  operacao     String
   entidade     String
   entidadeId   String?  @map("entidade_id")
   detalhes     Json?
@@ -187,7 +194,7 @@ model ChaveIdempotencia {
 model Cliente {
   id              String   @id @default(uuid())
   empresaId       String   @map("empresa_id")
-  tipo            String   @default("FISICA") // FISICA ou JURIDICA
+  tipo            String   @default("FISICA")
   nomeRazao       String   @map("nome_razao")
   apelidoFantasia String?  @map("apelido_fantasia")
   cpfCnpj         String   @map("cpf_cnpj")
@@ -204,9 +211,9 @@ model Cliente {
   criadoEm        DateTime @default(now()) @map("criado_em")
   atualizadoEm    DateTime @updatedAt @map("atualizado_em")
 
-  empresa        Empresa                 @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  veiculos       VinculoClienteVeiculo[]
-  atendimentos   Atendimento[]
+  empresa      Empresa                 @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  veiculos     VinculoClienteVeiculo[]
+  atendimentos Atendimento[]
 
   @@unique([empresaId, cpfCnpj])
   @@index([empresaId, nomeRazao])
@@ -218,7 +225,7 @@ model Cliente {
 // -------------------------------------------------------------
 model CategoriaVeiculo {
   id        String    @id @default(uuid())
-  codigo    String    @unique // PASSEIO, SUV, PICKUP, MOTO, VAN, CAMINHAO, OUTRO
+  codigo    String    @unique
   nome      String
   descricao String?
   veiculos  Veiculo[]
@@ -257,7 +264,7 @@ model VinculoClienteVeiculo {
   empresaId String   @map("empresa_id")
   clienteId String   @map("cliente_id")
   veiculoId String   @map("veiculo_id")
-  papel     String   @default("PROPRIETARIO") // PROPRIETARIO, CONDUTOR, FROTA, OUTRO
+  papel     String   @default("PROPRIETARIO")
   ativo     Boolean  @default(true)
   criadoEm  DateTime @default(now()) @map("criado_em")
 
@@ -270,7 +277,7 @@ model VinculoClienteVeiculo {
 }
 
 // -------------------------------------------------------------
-// DOC-001, DOC-003, DOC-007, DOC-008 e HU-008/009: Atendimento (Eixo Central)
+// DOC-001, DOC-003, DOC-007, DOC-008 e HU-008/009: Atendimento
 // -------------------------------------------------------------
 model Atendimento {
   id                String    @id @default(uuid())
@@ -281,7 +288,7 @@ model Atendimento {
   clienteId         String    @map("cliente_id")
   veiculoId         String    @map("veiculo_id")
   usuarioAberturaId String    @map("usuario_abertura_id")
-  status            String    @default("CONFIRMADO") // RASCUNHO, CONFIRMADO, EM_DIAGNOSTICO, etc.
+  status            String    @default("CONFIRMADO")
   queixaPrincipal   String    @map("queixa_principal")
   dataEntrada       DateTime  @default(now()) @map("data_entrada")
   previsaoEntrega   DateTime? @map("previsao_entrega")
@@ -295,6 +302,8 @@ model Atendimento {
   veiculo         Veiculo         @relation(fields: [veiculoId], references: [id])
   usuarioAbertura Usuario         @relation("UsuarioAberturaAtendimento", fields: [usuarioAberturaId], references: [id])
   medicao         MedicaoVeiculo?
+  diagnosticos    Diagnostico[]
+  orcamento       Orcamento?
 
   @@unique([empresaId, numeroSequencial])
   @@index([empresaId, status])
@@ -319,4 +328,113 @@ model MedicaoVeiculo {
   atendimento Atendimento @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
 
   @@map("medicoes_veiculo")
+}
+
+// -------------------------------------------------------------
+// DOC-003, DOC-007, DOC-008 e HU-010: Diagnóstico Técnico
+// -------------------------------------------------------------
+model Diagnostico {
+  id                      String   @id @default(uuid())
+  empresaId               String   @map("empresa_id")
+  atendimentoId           String   @map("atendimento_id")
+  responsavelTecnicoId    String   @map("responsavel_tecnico_id")
+  relatoTecnico           String   @map("relato_tecnico")
+  constatacoes            String
+  causaRaiz               String?  @map("causa_raiz")
+  conclusao               String   @default("PROCEDE_REPARO") // PROCEDE_REPARO, INCONCLUSIVO, etc.
+  procedimentoRecomendado String?  @map("procedimento_recomendado")
+  criadoEm                DateTime @default(now()) @map("criado_em")
+  atualizadoEm            DateTime @updatedAt @map("atualizado_em")
+
+  empresa            Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  atendimento        Atendimento @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+  responsavelTecnico Usuario     @relation("TecnicoDiagnostico", fields: [responsavelTecnicoId], references: [id])
+
+  @@index([empresaId, atendimentoId])
+  @@map("diagnosticos")
+}
+
+// -------------------------------------------------------------
+// DOC-001, DOC-003, DOC-008, HU-011 a HU-013: Orçamento Versionado e Imutável
+// -------------------------------------------------------------
+model Orcamento {
+  id            String   @id @default(uuid())
+  empresaId     String   @map("empresa_id")
+  atendimentoId String   @unique @map("atendimento_id")
+  criadoEm      DateTime @default(now()) @map("criado_em")
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
+
+  empresa     Empresa           @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  atendimento Atendimento       @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+  versoes     VersaoOrcamento[]
+
+  @@map("orcamentos")
+}
+
+model VersaoOrcamento {
+  id                    String    @id @default(uuid())
+  empresaId             String    @map("empresa_id")
+  orcamentoId           String    @map("orcamento_id")
+  numeroVersao          Int       @map("numero_versao") // 1, 2, 3...
+  status                String    @default("RASCUNHO") // RASCUNHO, APRESENTADA, APROVADA_PARCIAL, APROVADA_TOTAL, RECUSADA, CANCELADA
+  validadeDias          Int       @default(10) @map("validade_dias")
+  apresentadaEm         DateTime? @map("apresentada_em")
+  observacoesComerciais String?   @map("observacoes_comerciais")
+  valorTotalPecas       Decimal   @default(0.0) @map("valor_total_pecas") @db.Decimal(12, 2)
+  valorTotalServicos    Decimal   @default(0.0) @map("valor_total_servicos") @db.Decimal(12, 2)
+  valorDescontoGeral    Decimal   @default(0.0) @map("valor_desconto_geral") @db.Decimal(12, 2)
+  valorTotalFinal       Decimal   @default(0.0) @map("valor_total_final") @db.Decimal(12, 2)
+  criadoEm              DateTime  @default(now()) @map("criado_em")
+  atualizadoEm          DateTime  @updatedAt @map("atualizado_em")
+
+  empresa   Empresa            @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  orcamento Orcamento          @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  itens     ItemOrcamento[]
+  decisoes  DecisaoComercial[]
+
+  @@unique([orcamentoId, numeroVersao])
+  @@index([empresaId, status])
+  @@map("versoes_orcamento")
+}
+
+model ItemOrcamento {
+  id                  String   @id @default(uuid())
+  empresaId           String   @map("empresa_id")
+  versaoOrcamentoId   String   @map("versao_orcamento_id")
+  tipo                String   @default("SERVICO") // PECA ou SERVICO
+  descricao           String
+  quantidade          Decimal  @default(1.0) @db.Decimal(12, 3)
+  unidadeMedida       String   @default("UN") @map("unidade_medida")
+  valorUnitario       Decimal  @default(0.0) @map("valor_unitario") @db.Decimal(12, 2)
+  valorDesconto       Decimal  @default(0.0) @map("valor_desconto") @db.Decimal(12, 2)
+  valorTotal          Decimal  @default(0.0) @map("valor_total") @db.Decimal(12, 2)
+  decisao             String   @default("PENDENTE") // PENDENTE, APROVADO, RECUSADO, RETIRADO
+  justificativaDecisao String? @map("justificativa_decisao")
+  criadoEm            DateTime @default(now()) @map("criado_em")
+
+  empresa         Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  versaoOrcamento VersaoOrcamento @relation(fields: [versaoOrcamentoId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, versaoOrcamentoId])
+  @@map("itens_orcamento")
+}
+
+model DecisaoComercial {
+  id                   String   @id @default(uuid())
+  empresaId            String   @map("empresa_id")
+  versaoOrcamentoId    String   @map("versao_orcamento_id")
+  canal                String   @default("WHATSAPP") // PRESENCIAL, WHATSAPP, TELEFONE, EMAIL, OUTRO
+  autorizadorNome      String   @map("autorizador_nome")
+  documentoAutorizador String?  @map("documento_autorizador")
+  evidenciaTexto       String?  @map("evidencia_texto")
+  usuarioRegistradorId String   @map("usuario_registrador_id")
+  dataDecisao          DateTime @default(now()) @map("data_decisao")
+  criadoEm             DateTime @default(now()) @map("criado_em")
+
+  empresa            Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  versaoOrcamento    VersaoOrcamento @relation(fields: [versaoOrcamentoId], references: [id], onDelete: Cascade)
+  usuarioRegistrador Usuario         @relation("UsuarioDecisaoComercial", fields: [usuarioRegistradorId], references: [id])
+
+  @@index([empresaId, versaoOrcamentoId])
+  @@map("decisoes_comerciais")
 }
