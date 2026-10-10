@@ -15,8 +15,19 @@ import {
   Check,
   Wrench,
   Play,
+  ShieldCheck,
+  DollarSign,
+  KeyRound,
 } from 'lucide-react';
-import { Atendimento, Diagnostico, VersaoOrcamento, OrdemServico } from '../types';
+import {
+  Atendimento,
+  Diagnostico,
+  VersaoOrcamento,
+  OrdemServico,
+  InspecaoQualidade,
+  Cobranca,
+  EntregaVeiculo,
+} from '../types';
 import { apiRequest } from '../api';
 
 interface AtendimentoDetalhesModalProps {
@@ -30,9 +41,38 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
   onClose,
   onUpdated,
 }) => {
-  const [subAba, setSubAba] = useState<'DIAGNOSTICO' | 'ORCAMENTOS' | 'APROVACAO' | 'ORDEM_SERVICO'>('DIAGNOSTICO');
+  const [subAba, setSubAba] = useState<
+    'DIAGNOSTICO' | 'ORCAMENTOS' | 'APROVACAO' | 'ORDEM_SERVICO' | 'INSPECAO' | 'FINANCEIRO_ENTREGA'
+  >('DIAGNOSTICO');
   const [osVinculada, setOsVinculada] = useState<OrdemServico | null>(null);
   const [planejandoOS, setPlanejandoOS] = useState(false);
+
+  // Estados ENT-005: Inspeção, Cobrança e Entrega
+  const [inspecoes, setInspecoes] = useState<InspecaoQualidade[]>([]);
+  const [cobranca, setCobranca] = useState<Cobranca | null>(null);
+  const [entrega, setEntrega] = useState<EntregaVeiculo | null>(null);
+
+  // Form Inspeção
+  const [inspResultado, setInspResultado] = useState<'APROVADO_TOTAL' | 'APROVADO_COM_RESSALVA' | 'REPROVADO'>('APROVADO_TOTAL');
+  const [inspConstatacoes, setInspConstatacoes] = useState('');
+  const [inspKmTeste, setInspKmTeste] = useState<number>(atendimento.medicao?.quilometragem || 0);
+  const [salvandoInsp, setSalvandoInsp] = useState(false);
+
+  // Form Cobrança & Recebimento
+  const [cobNumParcelas, setCobNumParcelas] = useState(1);
+  const [gerandoCob, setGerandoCob] = useState(false);
+  const [recValor, setRecValor] = useState(0);
+  const [recMeio, setRecMeio] = useState('PIX');
+  const [salvandoRec, setSalvandoRec] = useState(false);
+
+  // Form Entrega
+  const [entCondicao, setEntCondicao] = useState('APROVADO_TOTAL');
+  const [entRecebedor, setEntRecebedor] = useState(atendimento.cliente.nomeRazao);
+  const [entDoc, setEntDoc] = useState(atendimento.cliente.cpfCnpj || '');
+  const [entKmSaida, setEntKmSaida] = useState<number>(atendimento.medicao?.quilometragem || 0);
+  const [entObs, setEntObs] = useState('');
+  const [entMotivoDebito, setEntMotivoDebito] = useState('');
+  const [salvandoEnt, setSalvandoEnt] = useState(false);
 
   // Estado Diagnóstico
   const [diagnosticos, setDiagnosticos] = useState<Diagnostico[]>([]);
@@ -70,10 +110,13 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
 
   const carregarDadosComerciais = async () => {
     setErrorMsg('');
-    const [resDiag, resOrc, resOS] = await Promise.all([
+    const [resDiag, resOrc, resOS, resInsp, resCob, resEnt] = await Promise.all([
       apiRequest<Diagnostico[]>(`/atendimentos/${atendimento.id}/diagnostico`),
       apiRequest<VersaoOrcamento[]>(`/atendimentos/${atendimento.id}/orcamentos`),
       apiRequest<OrdemServico>(`/os/atendimento/${atendimento.id}`),
+      apiRequest<InspecaoQualidade[]>(`/atendimentos/${atendimento.id}/inspecoes`),
+      apiRequest<Cobranca>(`/atendimentos/${atendimento.id}/cobranca`),
+      apiRequest<EntregaVeiculo>(`/atendimentos/${atendimento.id}/entrega`),
     ]);
 
     if (resDiag.sucesso && resDiag.dados) {
@@ -96,11 +139,134 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
     } else {
       setOsVinculada(null);
     }
+    if (resInsp.sucesso && resInsp.dados) {
+      setInspecoes(resInsp.dados);
+    }
+    if (resCob.sucesso && resCob.dados) {
+      setCobranca(resCob.dados);
+      setRecValor(resCob.dados.saldoDevedor > 0 ? resCob.dados.saldoDevedor : 0);
+    } else {
+      setCobranca(null);
+    }
+    if (resEnt.sucesso && resEnt.dados) {
+      setEntrega(resEnt.dados);
+    } else {
+      setEntrega(null);
+    }
   };
 
   useEffect(() => {
     carregarDadosComerciais();
   }, [atendimento.id]);
+
+  // Handlers ENT-005
+  const handleRegistrarInspecao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSalvandoInsp(true);
+    setErrorMsg('');
+    setSucessoMsg('');
+
+    const res = await apiRequest(`/atendimentos/${atendimento.id}/inspecoes`, {
+      method: 'POST',
+      body: JSON.stringify({
+        atendimentoId: atendimento.id,
+        resultado: inspResultado,
+        constatacoes: inspConstatacoes,
+        itensInspecionados: ['Sistema de Freios', 'Teste de Rodagem', 'Verificação de Apertos', 'Fluidos e Vazamentos'],
+        quilometragemTeste: Number(inspKmTeste),
+      }),
+    });
+
+    setSalvandoInsp(false);
+    if (res.sucesso) {
+      setSucessoMsg(res.mensagem || 'Inspeção de qualidade registrada com sucesso!');
+      setInspConstatacoes('');
+      carregarDadosComerciais();
+      onUpdated();
+    } else {
+      setErrorMsg(res.mensagem || 'Falha ao registrar inspeção.');
+    }
+  };
+
+  const handleGerarCobranca = async () => {
+    setGerandoCob(true);
+    setErrorMsg('');
+    setSucessoMsg('');
+
+    const res = await apiRequest(`/atendimentos/${atendimento.id}/cobranca`, {
+      method: 'POST',
+      body: JSON.stringify({
+        atendimentoId: atendimento.id,
+        numeroParcelas: Number(cobNumParcelas),
+        primeiroVencimentoDias: 0,
+        observacoes: `Faturado diretamente no encerramento do atendimento ${atendimento.codigoFormatado}.`,
+      }),
+    });
+
+    setGerandoCob(false);
+    if (res.sucesso) {
+      setSucessoMsg(res.mensagem || 'Cobrança gerada com sucesso!');
+      carregarDadosComerciais();
+      onUpdated();
+    } else {
+      setErrorMsg(res.mensagem || 'Falha ao emitir cobrança.');
+    }
+  };
+
+  const handleRegistrarRecebimentoNoModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cobranca) return;
+    setSalvandoRec(true);
+    setErrorMsg('');
+    setSucessoMsg('');
+
+    const res = await apiRequest(`/cobrancas/${cobranca.id}/recebimentos`, {
+      method: 'POST',
+      body: JSON.stringify({
+        valor: Number(recValor),
+        meioPagamento: recMeio,
+        detalhes: `Recebimento presencial na entrega`,
+      }),
+    });
+
+    setSalvandoRec(false);
+    if (res.sucesso) {
+      setSucessoMsg(res.mensagem || 'Pagamento registrado com sucesso!');
+      carregarDadosComerciais();
+      onUpdated();
+    } else {
+      setErrorMsg(res.mensagem || 'Falha ao registrar pagamento.');
+    }
+  };
+
+  const handleRegistrarEntrega = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSalvandoEnt(true);
+    setErrorMsg('');
+    setSucessoMsg('');
+
+    const res = await apiRequest(`/atendimentos/${atendimento.id}/entrega`, {
+      method: 'POST',
+      body: JSON.stringify({
+        atendimentoId: atendimento.id,
+        condicaoDevolucao: entCondicao,
+        nomeRecebedor: entRecebedor,
+        documentoRecebedor: entDoc,
+        quilometragemSaida: Number(entKmSaida),
+        observacoes: entObs,
+        motivoLiberacaoComDebito: entMotivoDebito,
+      }),
+    });
+
+    setSalvandoEnt(false);
+    if (res.sucesso) {
+      setSucessoMsg(res.mensagem || 'Veículo entregue e atendimento concluído com sucesso!');
+      carregarDadosComerciais();
+      onUpdated();
+    } else {
+      setErrorMsg(res.mensagem || 'Falha ao registrar entrega.');
+    }
+  };
 
   // Planejar OS automática a partir dos itens do orçamento
   const handlePlanejarOSAutomatico = async () => {
@@ -389,6 +555,22 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
             style={{ fontSize: '0.84rem', padding: '8px 16px' }}
           >
             <Wrench size={16} /> 4. Execução Técnica & OS {osVinculada ? `(${osVinculada.codigoFormatado})` : ''}
+          </button>
+
+          <button
+            onClick={() => setSubAba('INSPECAO')}
+            className={`btn ${subAba === 'INSPECAO' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ fontSize: '0.84rem', padding: '8px 16px' }}
+          >
+            <ShieldCheck size={16} /> 5. Inspeção de Qualidade ({inspecoes.length})
+          </button>
+
+          <button
+            onClick={() => setSubAba('FINANCEIRO_ENTREGA')}
+            className={`btn ${subAba === 'FINANCEIRO_ENTREGA' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ fontSize: '0.84rem', padding: '8px 16px' }}
+          >
+            <KeyRound size={16} /> 6. Cobrança & Entrega {entrega ? '✓' : ''}
           </button>
         </div>
 
@@ -996,6 +1178,367 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* SUB-ABA 5: INSPEÇÃO FINAL DE QUALIDADE (HU-019) */}
+        {subAba === 'INSPECAO' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Lista de Inspeções Anteriores */}
+            {inspecoes.length > 0 && (
+              <div>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '10px', color: '#38bdf8' }}>
+                  Inspeções Realizadas ({inspecoes.length})
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {inspecoes.map((insp) => (
+                    <div
+                      key={insp.id}
+                      style={{
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '16px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div>
+                          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                            Inspetor: {insp.inspetor?.nome || 'Inspetor de Qualidade'}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '8px' }}>
+                            • {new Date(insp.criadoEm).toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                        <span className={`badge ${
+                          insp.resultado === 'APROVADO_TOTAL' ? 'badge-green' :
+                          insp.resultado === 'APROVADO_COM_RESSALVA' ? 'badge-amber' : 'badge-danger'
+                        }`}>
+                          {insp.resultado.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+
+                      <p style={{ fontSize: '0.85rem', marginBottom: '6px' }}>
+                        <strong>Constatações:</strong> {insp.constatacoes}
+                      </p>
+                      {insp.quilometragemTeste && (
+                        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          Odômetro no teste de rodagem: <strong>{insp.quilometragemTeste} km</strong>
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Form Nova Inspeção */}
+            {atendimento.status !== 'ENTREGUE' && (
+              <div style={{
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '20px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                  <ShieldCheck size={18} color="var(--primary)" />
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>Registrar Inspeção de Qualidade (HU-019)</h4>
+                </div>
+
+                <form onSubmit={handleRegistrarInspecao} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Resultado do Check-out *</label>
+                      <select
+                        value={inspResultado}
+                        onChange={(e) => setInspResultado(e.target.value as any)}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: '#181b22', color: 'inherit' }}
+                      >
+                        <option value="APROVADO_TOTAL">Aprovado Total (Liberado p/ Entrega)</option>
+                        <option value="APROVADO_COM_RESSALVA">Aprovado com Ressalva Operacional</option>
+                        <option value="REPROVADO">Reprovado (Retorna para Oficina)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Km após teste de rodagem</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={inspKmTeste}
+                        onChange={(e) => setInspKmTeste(Number(e.target.value))}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Parecer Técnico / Constatações *</label>
+                    <textarea
+                      rows={3}
+                      required
+                      placeholder="Descreva o teste de rodagem, funcionamento dos itens reparados, ausência de ruídos ou anomalias..."
+                      value={inspConstatacoes}
+                      onChange={(e) => setInspConstatacoes(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button type="submit" disabled={salvandoInsp} className="btn btn-primary">
+                      {salvandoInsp ? 'Gravando...' : 'Emitir Laudo de Inspeção'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SUB-ABA 6: FINANCEIRO & ENTREGA DO VEÍCULO (HU-020 a HU-022) */}
+        {subAba === 'FINANCEIRO_ENTREGA' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Bloco 1: Cobrança */}
+            <div style={{
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '20px',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <DollarSign size={18} color="var(--primary)" />
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>Contas a Receber / Cobrança (HU-020)</h4>
+                </div>
+                {cobranca && (
+                  <span className={`badge ${cobranca.status === 'LIQUIDADA' ? 'badge-green' : 'badge-amber'}`}>
+                    {cobranca.status.replace('_', ' ')}
+                  </span>
+                )}
+              </div>
+
+              {!cobranca ? (
+                <div style={{ textAlign: 'center', padding: '24px' }}>
+                  <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
+                    A cobrança consolida os valores dos itens aprovados no orçamento para emissão e parcelamento financeiro.
+                  </p>
+                  <div style={{ display: 'inline-flex', gap: '10px', alignItems: 'center' }}>
+                    <select
+                      value={cobNumParcelas}
+                      onChange={(e) => setCobNumParcelas(Number(e.target.value))}
+                      style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: '#181b22', color: 'inherit', fontSize: '0.85rem' }}
+                    >
+                      <option value={1}>1x À Vista</option>
+                      <option value={2}>2x Parcelado</option>
+                      <option value={3}>3x Parcelado</option>
+                      <option value={4}>4x Parcelado</option>
+                      <option value={6}>6x Parcelado</option>
+                    </select>
+
+                    <button
+                      type="button"
+                      disabled={gerandoCob}
+                      onClick={handleGerarCobranca}
+                      className="btn btn-primary"
+                    >
+                      <DollarSign size={16} /> {gerandoCob ? 'Gerando...' : 'Gerar Cobrança (HU-020)'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                    gap: '12px',
+                    background: 'rgba(255,255,255,0.02)',
+                    padding: '12px',
+                    borderRadius: 'var(--radius-sm)',
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>CÓDIGO COBRANÇA</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)' }}>{cobranca.codigoFormatado}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>VALOR LÍQUIDO</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 700 }}>
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cobranca.valorLiquido)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>VALOR RECEBIDO</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 700, color: '#34d399' }}>
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cobranca.valorRecebido)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>SALDO PENDENTE</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 700, color: cobranca.saldoDevedor > 0 ? '#f87171' : '#34d399' }}>
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cobranca.saldoDevedor)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Baixa rápida de pagamento se houver saldo */}
+                  {cobranca.saldoDevedor > 0 && (
+                    <form onSubmit={handleRegistrarRecebimentoNoModal} style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: '130px' }}>
+                        <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Valor a Baixar (R$)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          max={cobranca.saldoDevedor}
+                          value={recValor}
+                          onChange={(e) => setRecValor(Number(e.target.value))}
+                          style={{ width: '100%', padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit', fontSize: '0.82rem' }}
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: '140px' }}>
+                        <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Meio de Pagamento</label>
+                        <select
+                          value={recMeio}
+                          onChange={(e) => setRecMeio(e.target.value)}
+                          style={{ width: '100%', padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: '#181b22', color: 'inherit', fontSize: '0.82rem' }}
+                        >
+                          <option value="PIX">PIX</option>
+                          <option value="CARTAO_CREDITO">Cartão Crédito</option>
+                          <option value="CARTAO_DEBITO">Cartão Débito</option>
+                          <option value="DINHEIRO">Dinheiro</option>
+                        </select>
+                      </div>
+                      <button type="submit" disabled={salvandoRec} className="btn btn-secondary" style={{ padding: '7px 14px', fontSize: '0.82rem' }}>
+                        {salvandoRec ? 'Baixando...' : 'Registrar Recebimento (HU-021)'}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Bloco 2: Liberação e Entrega do Veículo */}
+            <div style={{
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '20px',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <KeyRound size={18} color="var(--primary)" />
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>Liberação e Entrega Técnica do Veículo (HU-022)</h4>
+                </div>
+                {entrega && <span className="badge badge-green">ENTREGUE</span>}
+              </div>
+
+              {entrega ? (
+                <div style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid #10b981', borderRadius: 'var(--radius-sm)', padding: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#34d399', fontWeight: 700, marginBottom: '6px' }}>
+                    <CheckCircle2 size={18} /> Veículo Entregue com Sucesso!
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', marginTop: '10px' }}>
+                    <div><strong>Retirado por:</strong> {entrega.nomeRecebedor} ({entrega.documentoRecebedor || 'Doc não informado'})</div>
+                    <div><strong>Odômetro Final:</strong> {entrega.quilometragemSaida} km</div>
+                    <div><strong>Data da Entrega:</strong> {new Date(entrega.dataHoraEntrega).toLocaleString('pt-BR')}</div>
+                    <div><strong>Condição Técnica:</strong> {entrega.condicaoDevolucao.replace(/_/g, ' ')}</div>
+                  </div>
+                  {entrega.liberadaComDebito && (
+                    <div style={{ marginTop: '8px', color: 'var(--accent-amber)', fontSize: '0.78rem' }}>
+                      ⚠️ <strong>Entregue com Débito Autorizado:</strong> {entrega.motivoLiberacaoComDebito}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <form onSubmit={handleRegistrarEntrega} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {cobranca && cobranca.saldoDevedor > 0 && (
+                    <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid var(--accent-amber)', borderRadius: 'var(--radius-sm)', padding: '12px', fontSize: '0.82rem', color: 'var(--accent-amber)' }}>
+                      ⚠️ <strong>Atenção:</strong> Há saldo financeiro pendente de <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cobranca.saldoDevedor)}</strong>. A liberação exige autorização de gestor (permissão de alçada <code>ENTREGA_COM_DEBITO</code>) e justificativa formal.
+                    </div>
+                  )}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Nome de Quem Está Retirando *</label>
+                      <input
+                        type="text"
+                        required
+                        value={entRecebedor}
+                        onChange={(e) => setEntRecebedor(e.target.value)}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Documento do Recebedor (CPF/RG)</label>
+                      <input
+                        type="text"
+                        value={entDoc}
+                        onChange={(e) => setEntDoc(e.target.value)}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Condição Técnica de Devolução *</label>
+                      <select
+                        value={entCondicao}
+                        onChange={(e) => setEntCondicao(e.target.value)}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: '#181b22', color: 'inherit' }}
+                      >
+                        <option value="APROVADO_TOTAL">Aprovado Total (Todos reparos concluídos)</option>
+                        <option value="APROVADO_COM_RESSALVA">Aprovado com Ressalva Informada</option>
+                        <option value="SEM_REPARO_RETIRADA_SOLICITADA">Sem Reparo (Retirada Solicitada pelo Cliente)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Odômetro de Saída (Km) *</label>
+                      <input
+                        type="number"
+                        min="0"
+                        required
+                        value={entKmSaida}
+                        onChange={(e) => setEntKmSaida(Number(e.target.value))}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                      />
+                    </div>
+                  </div>
+
+                  {cobranca && cobranca.saldoDevedor > 0 && (
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--accent-amber)' }}>Justificativa para Liberação com Débito *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ex: Faturado para 15 dias para cliente frotista cadastrado"
+                        value={entMotivoDebito}
+                        onChange={(e) => setEntMotivoDebito(e.target.value)}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--accent-amber)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Observações de Saída</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Pertences conferidos e devolvidos, manual e chave entregues"
+                      value={entObs}
+                      onChange={(e) => setEntObs(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.03)', color: 'inherit' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                    <button type="submit" disabled={salvandoEnt} className="btn btn-primary" style={{ padding: '10px 20px' }}>
+                      <CheckCircle2 size={16} /> {salvandoEnt ? 'Finalizando...' : 'Confirmar Entrega e Concluir Atendimento'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
         )}
       </div>

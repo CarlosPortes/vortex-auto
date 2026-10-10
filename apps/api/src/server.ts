@@ -11,6 +11,8 @@ import { atendimentosRoutes } from './routes/atendimentos.routes.js';
 import { orcamentosRoutes } from './routes/orcamentos.routes.js';
 import { produtosRoutes } from './routes/produtos.routes.js';
 import { osRoutes } from './routes/os.routes.js';
+import { inspecoesRoutes } from './routes/inspecoes.routes.js';
+import { financeiroRoutes } from './routes/financeiro.routes.js';
 
 dotenv.config();
 
@@ -42,7 +44,7 @@ app.get('/api/health', async () => {
   return {
     status: 'online',
     aplicacao: 'Vortex Auto API',
-    versao: '0.4.0',
+    versao: '0.5.0',
     timestamp: new Date().toISOString(),
   };
 });
@@ -56,6 +58,8 @@ await app.register(atendimentosRoutes, { prefix: '/api/atendimentos' });
 await app.register(orcamentosRoutes, { prefix: '/api' });
 await app.register(produtosRoutes, { prefix: '/api/produtos' });
 await app.register(osRoutes, { prefix: '/api/os' });
+await app.register(inspecoesRoutes, { prefix: '/api' });
+await app.register(financeiroRoutes, { prefix: '/api' });
 
 // Inicialização do Servidor
 const PORT = Number(process.env.PORT) || 3333;

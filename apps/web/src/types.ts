@@ -241,3 +241,76 @@ export interface OrdemServico {
   criadoEm: string;
 }
 
+// -------------------------------------------------------------
+// ENT-005: Tipos de Inspeção, Financeiro e Entrega
+// -------------------------------------------------------------
+export interface InspecaoQualidade {
+  id: string;
+  atendimentoId: string;
+  resultado: string; // APROVADO_TOTAL, APROVADO_COM_RESSALVA, REPROVADO
+  constatacoes: string;
+  itensInspecionados: string[];
+  quilometragemTeste?: number | null;
+  criadoEm: string;
+  inspetor?: { id: string; nome: string; email?: string } | null;
+}
+
+export interface ParcelaCobranca {
+  id: string;
+  numeroParcela: number;
+  valor: number;
+  valorPago: number;
+  saldoDevedor: number;
+  dataVencimento: string;
+  status: string; // PENDENTE, PAGA, VENCIDA, CANCELADA
+}
+
+export interface Recebimento {
+  id: string;
+  codigoFormatado: string;
+  valor: number;
+  meioPagamento: string;
+  detalhes?: string | null;
+  dataHoraRecebimento: string;
+  usuarioNome?: string;
+}
+
+export interface Cobranca {
+  id: string;
+  codigoFormatado: string;
+  status: string; // PENDENTE, PARCIALMENTE_LIQUIDADA, LIQUIDADA, CANCELADA
+  valorTotal: number;
+  valorDesconto: number;
+  valorLiquido: number;
+  valorRecebido: number;
+  saldoDevedor: number;
+  observacoes?: string | null;
+  criadoEm: string;
+  totalParcelas?: number;
+  parcelasPagas?: number;
+  atendimento?: {
+    id: string;
+    codigoFormatado: string;
+    status: string;
+    cliente: { id: string; nomeRazao: string; cpfCnpj?: string; telefone: string };
+    veiculo: { id: string; placa: string; modelo: string; marca: string };
+  };
+  parcelas?: ParcelaCobranca[];
+  recebimentos?: Recebimento[];
+}
+
+export interface EntregaVeiculo {
+  id: string;
+  atendimentoId: string;
+  condicaoDevolucao: string;
+  nomeRecebedor: string;
+  documentoRecebedor?: string | null;
+  quilometragemSaida: number;
+  liberadaComDebito: boolean;
+  motivoLiberacaoComDebito?: string | null;
+  observacoes?: string | null;
+  dataHoraEntrega: string;
+  usuarioEntrega?: { id: string; nome: string; email?: string } | null;
+}
+
+
