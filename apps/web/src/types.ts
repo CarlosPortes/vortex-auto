@@ -187,6 +187,9 @@ export interface Produto {
   fotoUrl?: string | null;
   unidadeMedida: string;
   precoCusto: number;
+  custoMedio?: number;
+  ultimoPrecoCompra?: number | null;
+  ultimoPrecoVenda?: number | null;
   precoVenda: number;
   saldoFisico: number;
   saldoReservado: number;
@@ -408,5 +411,130 @@ export interface ResumoRelatorio {
     recusadas: number;
   };
 }
+
+// -------------------------------------------------------------
+// Tipos de Compras, NF-e e MRP
+// -------------------------------------------------------------
+export interface ItemCompra {
+  id: string;
+  compraId: string;
+  produtoId: string;
+  quantidade: number;
+  precoUnitario: number;
+  subtotal: number;
+  produto: {
+    id: string;
+    codigo: string;
+    descricao: string;
+    unidadeMedida: string;
+    fotoUrl?: string | null;
+    localizacao?: string | null;
+    custoMedio?: number;
+    ultimoPrecoCompra?: number | null;
+  };
+}
+
+export interface Compra {
+  id: string;
+  numeroNota?: string | null;
+  serie?: string | null;
+  chaveAcesso?: string | null;
+  fornecedorNome: string;
+  fornecedorCnpj?: string | null;
+  status: 'COTACAO' | 'PEDIDO_CONFIRMADO' | 'RECEBIDO' | 'CANCELADO';
+  dataEmissao?: string | null;
+  dataRecebimento?: string | null;
+  valorTotal: number;
+  observacoes?: string | null;
+  criadoEm: string;
+  usuario: { id: string; nome: string; email?: string };
+  itens: ItemCompra[];
+}
+
+export interface DemandaOSInfo {
+  osId: string;
+  osCodigo: string;
+  veiculo: string;
+  cliente: string;
+  quantidadeNecessaria: number;
+}
+
+export interface ItemSugestaoMRP {
+  produtoId: string;
+  codigo: string;
+  descricao: string;
+  fotoUrl?: string | null;
+  localizacao?: string | null;
+  saldoFisico: number;
+  saldoReservado: number;
+  saldoDisponivel: number;
+  estoqueMinimo: number;
+  demandaOS: number;
+  necessidadeLiquida: number;
+  custoMedio: number;
+  ultimoPrecoCompra: number;
+  ultimoPrecoVenda: number;
+  precoCustoAtual: number;
+  custoTotalEstimado: number;
+  criticidade: 'CRITICO' | 'REPOSICAO' | 'ESTAVEL';
+  motivoUrgencia: string;
+  ordensRelacionadas: DemandaOSInfo[];
+}
+
+export interface ResumoMRP {
+  totalItensCriticos: number;
+  totalItensReposicao: number;
+  totalPecasNecessarias: number;
+  custoTotalSugerido: number;
+  itens: ItemSugestaoMRP[];
+}
+
+// -------------------------------------------------------------
+// Tipos do Módulo Dedicado de Vendas Balcão
+// -------------------------------------------------------------
+export interface ItemVendaBalcao {
+  id: string;
+  vendaId: string;
+  produtoId: string;
+  quantidade: number;
+  precoUnitario: number;
+  custoUnitario: number;
+  subtotal: number;
+  produto: {
+    id: string;
+    codigo: string;
+    descricao: string;
+    unidadeMedida: string;
+    fotoUrl?: string | null;
+    localizacao?: string | null;
+  };
+}
+
+export interface VendaBalcao {
+  id: string;
+  codigoVenda: string;
+  numeroSequencial: number;
+  clienteNome: string;
+  clienteDocumento?: string | null;
+  clienteTelefone?: string | null;
+  formaPagamento: 'PIX' | 'CARTAO_DEBITO' | 'CARTAO_CREDITO' | 'DINHEIRO';
+  subtotal: number;
+  desconto: number;
+  valorTotal: number;
+  status: 'CONCLUIDA' | 'CANCELADA';
+  observacoes?: string | null;
+  criadoEm: string;
+  usuario: { id: string; nome: string };
+  itens: ItemVendaBalcao[];
+  empresa?: {
+    razaoSocial: string;
+    nomeFantasia?: string | null;
+    cnpj: string;
+    telefone: string;
+    cidade: string;
+    uf: string;
+  };
+}
+
 
 

@@ -6,3 +6,4 @@ export * from './dtos/orcamento.dto.js';
 export * from './dtos/execucao.dto.js';
 export * from './dtos/financeiro-entrega.dto.js';
 export * from './dtos/complementos.dto.js';
+export * from './dtos/compras.dto.js';

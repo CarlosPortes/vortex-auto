@@ -262,4 +262,41 @@ export async function atendimentosRoutes(app: FastifyInstance) {
       dados: atualizado,
     });
   });
+
+  /**
+   * POST /api/atendimentos/:id/reservas
+   * Reservar material / peças para o atendimento
+   */
+  app.post('/:id/reservas', async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenant = request.tenant!;
+    const { id } = request.params as { id: string };
+    const { produtoId, quantidade } = request.body as { produtoId: string; quantidade: number };
+
+    const atend = await prisma.atendimento.findFirst({
+      where: { id, empresaId: tenant.empresaId },
+    });
+    if (!atend) return reply.status(404).send({ sucesso: false, mensagem: 'Atendimento não encontrado.' });
+
+    const prod = await prisma.produto.findFirst({
+      where: { id: produtoId, empresaId: tenant.empresaId },
+    });
+    if (!prod) return reply.status(404).send({ sucesso: false, mensagem: 'Produto não encontrado.' });
+
+    const reserva = await prisma.reservaEstoque.create({
+      data: {
+        empresaId: tenant.empresaId,
+        atendimentoId: id,
+        produtoId,
+        quantidade,
+        status: 'ATIVA',
+      },
+    });
+
+    await prisma.produto.update({
+      where: { id: produtoId },
+      data: { saldoReservado: { increment: quantidade } },
+    });
+
+    return reply.status(201).send({ sucesso: true, dados: reserva });
+  });
 }

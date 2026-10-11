@@ -16,6 +16,8 @@ import { osRoutes } from './routes/os.routes.js';
 import { inspecoesRoutes } from './routes/inspecoes.routes.js';
 import { financeiroRoutes } from './routes/financeiro.routes.js';
 import { complementosRoutes } from './routes/complementos.routes.js';
+import { comprasRoutes } from './routes/compras.routes.js';
+import { vendasBalcaoRoutes } from './routes/vendas-balcao.routes.js';
 
 dotenv.config();
 
@@ -75,6 +77,8 @@ await app.register(osRoutes, { prefix: '/api/os' });
 await app.register(inspecoesRoutes, { prefix: '/api' });
 await app.register(financeiroRoutes, { prefix: '/api' });
 await app.register(complementosRoutes, { prefix: '/api' });
+await app.register(comprasRoutes, { prefix: '/api/compras' });
+await app.register(vendasBalcaoRoutes, { prefix: '/api/vendas-balcao' });
 
 // Inicialização do Servidor
 const PORT = Number(process.env.PORT) || 3333;

@@ -13,6 +13,8 @@ import {
   Package,
   DollarSign,
   TrendingUp,
+  ShoppingCart,
+  Store,
 } from 'lucide-react';
 import { Header } from './components/Header';
 import { JornadaVisualizer } from './components/JornadaVisualizer';
@@ -22,6 +24,8 @@ import { AtendimentosTab } from './components/AtendimentosTab';
 import { ClientesVeiculosTab } from './components/ClientesVeiculosTab';
 import { OrdensServicoTab } from './components/OrdensServicoTab';
 import { EstoqueTab } from './components/EstoqueTab';
+import { ComprasMRPTab } from './components/ComprasMRPTab';
+import { VendasBalcaoTab } from './components/VendasBalcaoTab';
 import { FinanceiroTab } from './components/FinanceiroTab';
 import { RelatoriosTab } from './components/RelatoriosTab';
 import { LoginModal } from './components/LoginModal';
@@ -32,7 +36,7 @@ export const App: React.FC = () => {
   const [context, setContext] = useState<UserTenantContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [abaAtiva, setAbaAtiva] = useState<
-    'ATENDIMENTOS' | 'ORDENS_SERVICO' | 'ESTOQUE' | 'FINANCEIRO' | 'RELATORIOS' | 'CLIENTES_VEICULOS' | 'JORNADA' | 'COLABORADORES' | 'AUDITORIA' | 'SISTEMA'
+    'ATENDIMENTOS' | 'ORDENS_SERVICO' | 'ESTOQUE' | 'COMPRAS_MRP' | 'VENDAS_BALCAO' | 'FINANCEIRO' | 'RELATORIOS' | 'CLIENTES_VEICULOS' | 'JORNADA' | 'COLABORADORES' | 'AUDITORIA' | 'SISTEMA'
   >('ATENDIMENTOS');
 
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
@@ -236,6 +240,20 @@ export const App: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setAbaAtiva('COMPRAS_MRP')}
+            className={`btn ${abaAtiva === 'COMPRAS_MRP' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            <ShoppingCart size={16} /> Compras & MRP (NF-e)
+          </button>
+
+          <button
+            onClick={() => setAbaAtiva('VENDAS_BALCAO')}
+            className={`btn ${abaAtiva === 'VENDAS_BALCAO' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            <Store size={16} /> Vendas Balcão (PDV)
+          </button>
+
+          <button
             onClick={() => setAbaAtiva('FINANCEIRO')}
             className={`btn ${abaAtiva === 'FINANCEIRO' ? 'btn-primary' : 'btn-secondary'}`}
           >
@@ -291,6 +309,10 @@ export const App: React.FC = () => {
         {abaAtiva === 'ORDENS_SERVICO' && <OrdensServicoTab />}
 
         {abaAtiva === 'ESTOQUE' && <EstoqueTab />}
+
+        {abaAtiva === 'COMPRAS_MRP' && <ComprasMRPTab />}
+
+        {abaAtiva === 'VENDAS_BALCAO' && <VendasBalcaoTab />}
 
         {abaAtiva === 'FINANCEIRO' && <FinanceiroTab />}
 

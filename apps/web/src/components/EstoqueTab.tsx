@@ -41,6 +41,9 @@ export const EstoqueTab: React.FC = () => {
   const [formFotoUrl, setFormFotoUrl] = useState('');
   const [formUnidade, setFormUnidade] = useState('UN');
   const [formPrecoCusto, setFormPrecoCusto] = useState(0);
+  const [formCustoMedio, setFormCustoMedio] = useState(0);
+  const [formUltimoPrecoCompra, setFormUltimoPrecoCompra] = useState<number | ''>('');
+  const [formUltimoPrecoVenda, setFormUltimoPrecoVenda] = useState<number | ''>('');
   const [formPrecoVenda, setFormPrecoVenda] = useState(0);
   const [formEstoqueMinimo, setFormEstoqueMinimo] = useState(2);
   const [formSaldoInicial, setFormSaldoInicial] = useState(0);
@@ -128,6 +131,9 @@ export const EstoqueTab: React.FC = () => {
     setFormFotoUrl(prod.fotoUrl || '');
     setFormUnidade(prod.unidadeMedida);
     setFormPrecoCusto(prod.precoCusto);
+    setFormCustoMedio(prod.custoMedio || prod.precoCusto || 0);
+    setFormUltimoPrecoCompra(prod.ultimoPrecoCompra !== undefined && prod.ultimoPrecoCompra !== null ? prod.ultimoPrecoCompra : '');
+    setFormUltimoPrecoVenda(prod.ultimoPrecoVenda !== undefined && prod.ultimoPrecoVenda !== null ? prod.ultimoPrecoVenda : '');
     setFormPrecoVenda(prod.precoVenda);
     setFormEstoqueMinimo(prod.estoqueMinimo);
     setModalEditarProduto(true);
@@ -148,6 +154,9 @@ export const EstoqueTab: React.FC = () => {
         fotoUrl: formFotoUrl.trim() || null,
         unidadeMedida: formUnidade,
         precoCusto: Number(formPrecoCusto),
+        custoMedio: Number(formCustoMedio),
+        ultimoPrecoCompra: formUltimoPrecoCompra !== '' ? Number(formUltimoPrecoCompra) : null,
+        ultimoPrecoVenda: formUltimoPrecoVenda !== '' ? Number(formUltimoPrecoVenda) : null,
         precoVenda: Number(formPrecoVenda),
         estoqueMinimo: Number(formEstoqueMinimo),
       }),
@@ -415,6 +424,9 @@ export const EstoqueTab: React.FC = () => {
                 <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>CÓDIGO / EAN</th>
                 <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>DESCRIÇÃO / LOCAL</th>
                 <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>UN</th>
+                <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>CUSTO MÉDIO</th>
+                <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>ÚLT. COMPRA</th>
+                <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>ÚLT. VENDA</th>
                 <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>PREÇO VENDA</th>
                 <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>FÍSICO</th>
                 <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>RESERVADO</th>
@@ -426,13 +438,13 @@ export const EstoqueTab: React.FC = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={13} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     Consultando estoque de peças...
                   </td>
                 </tr>
               ) : produtos.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={13} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     Nenhuma peça ou produto encontrado com os filtros aplicados.
                   </td>
                 </tr>
@@ -500,7 +512,16 @@ export const EstoqueTab: React.FC = () => {
                     <td style={{ padding: '12px 14px' }}>
                       <span className="badge badge-gray">{prod.unidadeMedida}</span>
                     </td>
-                    <td style={{ padding: '12px 14px', fontWeight: 600 }}>
+                    <td style={{ padding: '12px 14px', fontWeight: 600, color: '#38bdf8' }}>
+                      {prod.custoMedio ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.custoMedio) : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.precoCusto)}
+                    </td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                      {prod.ultimoPrecoCompra ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.ultimoPrecoCompra) : '—'}
+                    </td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                      {prod.ultimoPrecoVenda ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.ultimoPrecoVenda) : '—'}
+                    </td>
+                    <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--accent-green)' }}>
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.precoVenda)}
                     </td>
                     <td style={{ padding: '12px 14px', fontWeight: 600 }}>{prod.saldoFisico}</td>
@@ -865,9 +886,9 @@ export const EstoqueTab: React.FC = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label className="input-label">Preço de Custo (R$)</label>
+                  <label className="input-label">Custo Base (R$)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -878,16 +899,54 @@ export const EstoqueTab: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="input-label">Preço de Venda (R$)</label>
+                  <label className="input-label" style={{ color: '#38bdf8' }}>Custo Médio (R$)</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    value={formPrecoVenda}
-                    onChange={(e) => setFormPrecoVenda(Number(e.target.value))}
+                    value={formCustoMedio}
+                    onChange={(e) => setFormCustoMedio(Number(e.target.value))}
+                    className="input-field"
+                    style={{ borderColor: 'rgba(56, 189, 248, 0.4)' }}
+                  />
+                </div>
+                <div>
+                  <label className="input-label">Últ. Compra (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="—"
+                    value={formUltimoPrecoCompra}
+                    onChange={(e) => setFormUltimoPrecoCompra(e.target.value !== '' ? Number(e.target.value) : '')}
                     className="input-field"
                   />
                 </div>
+                <div>
+                  <label className="input-label">Últ. Venda (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="—"
+                    value={formUltimoPrecoVenda}
+                    onChange={(e) => setFormUltimoPrecoVenda(e.target.value !== '' ? Number(e.target.value) : '')}
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="input-label">Preço de Tabela / Venda (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formPrecoVenda}
+                  onChange={(e) => setFormPrecoVenda(Number(e.target.value))}
+                  className="input-field"
+                  style={{ fontWeight: 700 }}
+                />
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>

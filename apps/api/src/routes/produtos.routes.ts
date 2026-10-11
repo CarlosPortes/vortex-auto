@@ -63,6 +63,9 @@ export async function produtosRoutes(app: FastifyInstance) {
           fotoUrl: p.fotoUrl,
           unidadeMedida: p.unidadeMedida,
           precoCusto: Number(p.precoCusto),
+          custoMedio: Number(p.custoMedio),
+          ultimoPrecoCompra: p.ultimoPrecoCompra ? Number(p.ultimoPrecoCompra) : null,
+          ultimoPrecoVenda: p.ultimoPrecoVenda ? Number(p.ultimoPrecoVenda) : null,
           precoVenda: Number(p.precoVenda),
           saldoFisico,
           saldoReservado,
@@ -128,6 +131,9 @@ export async function produtosRoutes(app: FastifyInstance) {
         fotoUrl: p.fotoUrl,
         unidadeMedida: p.unidadeMedida,
         precoCusto: Number(p.precoCusto),
+        custoMedio: Number(p.custoMedio),
+        ultimoPrecoCompra: p.ultimoPrecoCompra ? Number(p.ultimoPrecoCompra) : null,
+        ultimoPrecoVenda: p.ultimoPrecoVenda ? Number(p.ultimoPrecoVenda) : null,
         precoVenda: Number(p.precoVenda),
         saldoFisico,
         saldoReservado,
@@ -168,6 +174,9 @@ export async function produtosRoutes(app: FastifyInstance) {
         fotoUrl: p.fotoUrl,
         unidadeMedida: p.unidadeMedida,
         precoCusto: Number(p.precoCusto),
+        custoMedio: Number(p.custoMedio),
+        ultimoPrecoCompra: p.ultimoPrecoCompra ? Number(p.ultimoPrecoCompra) : null,
+        ultimoPrecoVenda: p.ultimoPrecoVenda ? Number(p.ultimoPrecoVenda) : null,
         precoVenda: Number(p.precoVenda),
         saldoFisico,
         saldoReservado,
@@ -307,6 +316,9 @@ export async function produtosRoutes(app: FastifyInstance) {
           fotoUrl: body.fotoUrl !== undefined ? body.fotoUrl?.trim() || null : prod.fotoUrl,
           unidadeMedida: body.unidadeMedida ? body.unidadeMedida.trim().toUpperCase() : prod.unidadeMedida,
           precoCusto: body.precoCusto !== undefined ? Number(body.precoCusto) : prod.precoCusto,
+          custoMedio: body.custoMedio !== undefined ? Number(body.custoMedio) : prod.custoMedio,
+          ultimoPrecoCompra: body.ultimoPrecoCompra !== undefined ? Number(body.ultimoPrecoCompra) : prod.ultimoPrecoCompra,
+          ultimoPrecoVenda: body.ultimoPrecoVenda !== undefined ? Number(body.ultimoPrecoVenda) : prod.ultimoPrecoVenda,
           precoVenda: body.precoVenda !== undefined ? Number(body.precoVenda) : prod.precoVenda,
           estoqueMinimo: body.estoqueMinimo !== undefined ? Number(body.estoqueMinimo) : prod.estoqueMinimo,
           ativo: body.ativo !== undefined ? Boolean(body.ativo) : prod.ativo,
@@ -369,12 +381,25 @@ export async function produtosRoutes(app: FastifyInstance) {
       const saldoFisicoNovo = saldoFisicoAnt + qtdNum;
       const saldoRes = Number(prod.saldoReservado);
 
+      // Calcular Custo Médio Ponderado (CMP)
+      const custoMedioAnt = Number(prod.custoMedio) > 0 ? Number(prod.custoMedio) : Number(prod.precoCusto);
+      const novoCustoMedio =
+        precoCusto !== undefined && precoCusto > 0 && saldoFisicoNovo > 0
+          ? (saldoFisicoAnt * custoMedioAnt + qtdNum * precoCusto) / saldoFisicoNovo
+          : custoMedioAnt;
+
       const resultado = await prisma.$transaction(async (tx) => {
         const prodUp = await tx.produto.update({
           where: { id: prod.id },
           data: {
             saldoFisico: saldoFisicoNovo,
-            ...(precoCusto !== undefined && precoCusto > 0 ? { precoCusto } : {}),
+            ...(precoCusto !== undefined && precoCusto > 0
+              ? {
+                  precoCusto: novoCustoMedio,
+                  custoMedio: novoCustoMedio,
+                  ultimoPrecoCompra: precoCusto,
+                }
+              : {}),
           },
         });
 
@@ -624,7 +649,10 @@ export async function produtosRoutes(app: FastifyInstance) {
 
           await tx.produto.update({
             where: { id: prod.id },
-            data: { saldoFisico: saldoNovo },
+            data: {
+              saldoFisico: saldoNovo,
+              ultimoPrecoVenda: item.valorUnitario,
+            },
           });
 
           const mov = await tx.movimentoEstoque.create({

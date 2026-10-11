@@ -162,3 +162,25 @@ export enum TipoOperacaoAuditoria {
   RECEBIMENTO_FINANCEIRO = 'RECEBIMENTO_FINANCEIRO',
   ENTREGA_VEICULO = 'ENTREGA_VEICULO',
 }
+
+// Compras, MRP e Fornecedores
+export enum StatusCompra {
+  COTACAO = 'COTACAO',
+  PEDIDO_CONFIRMADO = 'PEDIDO_CONFIRMADO',
+  RECEBIDO = 'RECEBIDO',
+  CANCELADO = 'CANCELADO',
+}
+
+// Venda Balcão
+export enum StatusVendaBalcao {
+  CONCLUIDA = 'CONCLUIDA',
+  CANCELADA = 'CANCELADA',
+}
+
+// Criticidade das Necessidades do MRP
+export enum CriticidadeMRP {
+  CRITICO = 'CRITICO',       // OS ativa precisando de peças sem saldo disponível
+  REPOSICAO = 'REPOSICAO',   // Saldo abaixo ou igual ao estoque mínimo
+  ESTAVEL = 'ESTAVEL',       // Saldo suficiente
+}
+
