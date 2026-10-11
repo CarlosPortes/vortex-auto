@@ -114,6 +114,7 @@ export enum TipoMovimentoEstoque {
   DEVOLUCAO = 'DEVOLUCAO',
   AJUSTE_POSITIVO = 'AJUSTE_POSITIVO',
   AJUSTE_NEGATIVO = 'AJUSTE_NEGATIVO',
+  VENDA_DIRETA = 'VENDA_DIRETA',
 }
 
 // DOC-002 e DOC-003: Financeiro (Contas a Receber)

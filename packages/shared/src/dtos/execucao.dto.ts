@@ -6,7 +6,10 @@ import { TipoMovimentoEstoque, StatusOS, StatusAtividade } from '../domain/enums
 // -------------------------------------------------------------
 export const CriarProdutoSchema = z.object({
   codigo: z.string().min(2, 'Código do produto obrigatório'),
+  codigoBarras: z.string().optional(),
   descricao: z.string().min(3, 'Descrição do produto obrigatória'),
+  localizacao: z.string().optional(),
+  fotoUrl: z.string().optional(),
   unidadeMedida: z.string().min(1).default('UN'),
   precoCusto: z.number().min(0).default(0),
   precoVenda: z.number().min(0).default(0),
@@ -25,6 +28,41 @@ export const MovimentarEstoqueSchema = z.object({
 });
 
 export type MovimentarEstoqueDto = z.infer<typeof MovimentarEstoqueSchema>;
+
+// -------------------------------------------------------------
+// DTOs para WMS Operacional (Bipagem, Entrada, OS e Venda Balcão)
+// -------------------------------------------------------------
+export const EntradaWMSSchema = z.object({
+  produtoId: z.string().uuid('ID de produto inválido'),
+  quantidade: z.number().positive('Quantidade deve ser positiva'),
+  precoCusto: z.number().min(0).optional(),
+  motivo: z.string().optional(),
+  documentoRef: z.string().optional(),
+});
+export type EntradaWMSDto = z.infer<typeof EntradaWMSSchema>;
+
+export const BaixaOSWMSSchema = z.object({
+  ordemServicoId: z.string().uuid('ID de OS inválido'),
+  produtoId: z.string().uuid('ID de produto inválido'),
+  quantidade: z.number().positive('Quantidade deve ser positiva'),
+  motivo: z.string().optional(),
+});
+export type BaixaOSWMSDto = z.infer<typeof BaixaOSWMSSchema>;
+
+export const ItemVendaBalcaoSchema = z.object({
+  produtoId: z.string().uuid('ID de produto inválido'),
+  quantidade: z.number().positive('Quantidade deve ser positiva'),
+  valorUnitario: z.number().min(0, 'Valor unitário inválido'),
+});
+
+export const VendaBalcaoWMSSchema = z.object({
+  itens: z.array(ItemVendaBalcaoSchema).min(1, 'A venda balcão deve conter ao menos um item'),
+  formaPagamento: z.enum(['PIX', 'CARTAO_CREDITO', 'CARTAO_DEBITO', 'DINHEIRO']),
+  clienteNome: z.string().optional(),
+  observacoes: z.string().optional(),
+});
+export type VendaBalcaoWMSDto = z.infer<typeof VendaBalcaoWMSSchema>;
+
 
 // -------------------------------------------------------------
 // DTOs de Ordem de Serviço e Atividades (HU-014 e HU-015)

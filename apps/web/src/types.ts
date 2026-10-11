@@ -181,7 +181,10 @@ export interface VersaoOrcamento {
 export interface Produto {
   id: string;
   codigo: string;
+  codigoBarras?: string | null;
   descricao: string;
+  localizacao?: string | null;
+  fotoUrl?: string | null;
   unidadeMedida: string;
   precoCusto: number;
   precoVenda: number;
