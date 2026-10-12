@@ -15,9 +15,20 @@ export const CriarProdutoSchema = z.object({
   precoVenda: z.number().min(0).default(0),
   estoqueMinimo: z.number().min(0).default(0),
   saldoInicial: z.number().min(0).default(0),
+  marca: z.string().optional(),
+  modelo: z.string().optional(),
+  categoria: z.string().optional(),
+  codigoOriginal: z.string().optional(),
+  aplicacoes: z.string().optional(),
+  especificacoes: z.string().optional(),
+  lote: z.string().optional(),
+  dataValidade: z.string().optional().nullable(),
 });
 
 export type CriarProdutoDto = z.infer<typeof CriarProdutoSchema>;
+
+export const AtualizarProdutoSchema = CriarProdutoSchema.partial();
+export type AtualizarProdutoDto = z.infer<typeof AtualizarProdutoSchema>;
 
 export const MovimentarEstoqueSchema = z.object({
   produtoId: z.string().uuid('ID de produto inválido'),

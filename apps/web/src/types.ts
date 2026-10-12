@@ -183,6 +183,16 @@ export interface Produto {
   codigo: string;
   codigoBarras?: string | null;
   descricao: string;
+  marca?: string | null;
+  modelo?: string | null;
+  categoria?: string | null;
+  codigoOriginal?: string | null;
+  aplicacoes?: string | null;
+  especificacoes?: string | null;
+  lote?: string | null;
+  dataValidade?: string | null;
+  statusValidade?: 'VENCIDO' | 'ALERTA' | 'VALIDO' | 'NAO_APLICA';
+  diasParaVencer?: number | null;
   localizacao?: string | null;
   fotoUrl?: string | null;
   unidadeMedida: string;
@@ -382,6 +392,13 @@ export interface ResumoRelatorio {
     ticketMedio: number;
     totalRecebimentos: number;
   };
+  dre?: {
+    faturamentoBruto: number;
+    cmvTotal: number;
+    custosTerceiros: number;
+    lucroBruto: number;
+    margemBrutaPercentual: number;
+  };
   atendimentos: {
     total: number;
     entregues: number;
@@ -402,8 +419,21 @@ export interface ResumoRelatorio {
   estoque: {
     totalItensCadastrados: number;
     itensEstoqueCritico: number;
+    itensValidadeVencida?: number;
+    itensValidadeAlerta?: number;
     valorTotalEstoqueCusto: number;
     valorTotalEstoqueVenda: number;
+    radarValidades?: Array<{
+      id: string;
+      codigo: string;
+      descricao: string;
+      marca: string;
+      lote: string;
+      dataValidade: string;
+      diasParaVencer: number;
+      saldoFisico: number;
+      status: 'VENCIDO' | 'ALERTA';
+    }>;
   };
   garantias: {
     total: number;

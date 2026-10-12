@@ -14,10 +14,14 @@ import {
   Image as ImageIcon,
   Edit3,
   MapPin,
+  Calendar,
+  Car,
+  Eye,
 } from 'lucide-react';
 import { Produto, MovimentoEstoque } from '../types';
 import { apiRequest } from '../api';
 import { TerminalWMSModal } from './TerminalWMSModal';
+import { ModalFichaTecnicaProduto } from './ModalFichaTecnicaProduto';
 
 export const EstoqueTab: React.FC = () => {
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -32,11 +36,20 @@ export const EstoqueTab: React.FC = () => {
   const [modalExtrato, setModalExtrato] = useState(false);
   const [modalWMS, setModalWMS] = useState(false);
   const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(null);
+  const [produtoFichaTecnica, setProdutoFichaTecnica] = useState<Produto | null>(null);
 
   // Form Novo / Editar Produto
   const [formCodigo, setFormCodigo] = useState('');
   const [formCodigoBarras, setFormCodigoBarras] = useState('');
   const [formDescricao, setFormDescricao] = useState('');
+  const [formMarca, setFormMarca] = useState('');
+  const [formModelo, setFormModelo] = useState('');
+  const [formCategoria, setFormCategoria] = useState('');
+  const [formCodigoOriginal, setFormCodigoOriginal] = useState('');
+  const [formAplicacoes, setFormAplicacoes] = useState('');
+  const [formEspecificacoes, setFormEspecificacoes] = useState('');
+  const [formLote, setFormLote] = useState('');
+  const [formDataValidade, setFormDataValidade] = useState('');
   const [formLocalizacao, setFormLocalizacao] = useState('');
   const [formFotoUrl, setFormFotoUrl] = useState('');
   const [formUnidade, setFormUnidade] = useState('UN');
@@ -101,6 +114,14 @@ export const EstoqueTab: React.FC = () => {
         codigo: formCodigo,
         codigoBarras: formCodigoBarras.trim() || undefined,
         descricao: formDescricao,
+        marca: formMarca.trim() || undefined,
+        modelo: formModelo.trim() || undefined,
+        categoria: formCategoria.trim() || undefined,
+        codigoOriginal: formCodigoOriginal.trim() || undefined,
+        aplicacoes: formAplicacoes.trim() || undefined,
+        especificacoes: formEspecificacoes.trim() || undefined,
+        lote: formLote.trim() || undefined,
+        dataValidade: formDataValidade ? formDataValidade : undefined,
         localizacao: formLocalizacao.trim() || undefined,
         fotoUrl: formFotoUrl.trim() || undefined,
         unidadeMedida: formUnidade,
@@ -127,6 +148,14 @@ export const EstoqueTab: React.FC = () => {
     setFormCodigo(prod.codigo);
     setFormCodigoBarras(prod.codigoBarras || '');
     setFormDescricao(prod.descricao);
+    setFormMarca(prod.marca || '');
+    setFormModelo(prod.modelo || '');
+    setFormCategoria(prod.categoria || '');
+    setFormCodigoOriginal(prod.codigoOriginal || '');
+    setFormAplicacoes(prod.aplicacoes || '');
+    setFormEspecificacoes(prod.especificacoes || '');
+    setFormLote(prod.lote || '');
+    setFormDataValidade(prod.dataValidade ? prod.dataValidade.slice(0, 10) : '');
     setFormLocalizacao(prod.localizacao || '');
     setFormFotoUrl(prod.fotoUrl || '');
     setFormUnidade(prod.unidadeMedida);
@@ -149,6 +178,14 @@ export const EstoqueTab: React.FC = () => {
       method: 'PUT',
       body: JSON.stringify({
         descricao: formDescricao,
+        marca: formMarca.trim() || null,
+        modelo: formModelo.trim() || null,
+        categoria: formCategoria.trim() || null,
+        codigoOriginal: formCodigoOriginal.trim() || null,
+        aplicacoes: formAplicacoes.trim() || null,
+        especificacoes: formEspecificacoes.trim() || null,
+        lote: formLote.trim() || null,
+        dataValidade: formDataValidade ? formDataValidade : null,
         codigoBarras: formCodigoBarras.trim() || null,
         localizacao: formLocalizacao.trim() || null,
         fotoUrl: formFotoUrl.trim() || null,
@@ -163,7 +200,7 @@ export const EstoqueTab: React.FC = () => {
     });
 
     if (res.sucesso) {
-      setFeedbackMsg({ tipo: 'sucesso', texto: 'Produto e dados WMS atualizados com sucesso!' });
+      setFeedbackMsg({ tipo: 'sucesso', texto: 'Produto e dados técnicos atualizados com sucesso!' });
       setModalEditarProduto(false);
       limparFormProduto();
       carregarProdutos();
@@ -177,6 +214,14 @@ export const EstoqueTab: React.FC = () => {
     setFormCodigo('');
     setFormCodigoBarras('');
     setFormDescricao('');
+    setFormMarca('');
+    setFormModelo('');
+    setFormCategoria('');
+    setFormCodigoOriginal('');
+    setFormAplicacoes('');
+    setFormEspecificacoes('');
+    setFormLote('');
+    setFormDataValidade('');
     setFormLocalizacao('');
     setFormFotoUrl('');
     setFormPrecoCusto(0);
@@ -420,16 +465,15 @@ export const EstoqueTab: React.FC = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.02)' }}>
-                <th style={{ padding: '12px 14px', width: '50px' }}>FOTO</th>
+                <th style={{ padding: '12px 14px', width: '56px' }}>FOTO</th>
                 <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>CÓDIGO / EAN</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>DESCRIÇÃO / LOCAL</th>
+                <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>DESCRIÇÃO & APLICAÇÃO</th>
+                <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>MARCA / OEM</th>
+                <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>VALIDADE / LOTE</th>
                 <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>UN</th>
                 <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>CUSTO MÉDIO</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>ÚLT. COMPRA</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>ÚLT. VENDA</th>
                 <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>PREÇO VENDA</th>
                 <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>FÍSICO</th>
-                <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>RESERVADO</th>
                 <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>DISPONÍVEL</th>
                 <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>STATUS</th>
                 <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-muted)', textAlign: 'right' }}>AÇÕES</th>
@@ -438,13 +482,13 @@ export const EstoqueTab: React.FC = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={13} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={12} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     Consultando estoque de peças...
                   </td>
                 </tr>
               ) : produtos.length === 0 ? (
                 <tr>
-                  <td colSpan={13} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={12} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     Nenhuma peça ou produto encontrado com os filtros aplicados.
                   </td>
                 </tr>
@@ -457,19 +501,33 @@ export const EstoqueTab: React.FC = () => {
                       background: prod.abaixoMinimo ? 'rgba(239, 68, 68, 0.04)' : 'transparent',
                     }}
                   >
-                    {/* Miniatura da Foto */}
+                    {/* Miniatura da Foto com Clique para Modal de Ficha Técnica */}
                     <td style={{ padding: '10px 14px' }}>
                       <div
+                        onClick={() => setProdutoFichaTecnica(prod)}
+                        title="Clique para ver Ficha Técnica e Foto em Alta Resolução"
                         style={{
-                          width: '42px',
-                          height: '42px',
+                          width: '46px',
+                          height: '46px',
                           borderRadius: '8px',
-                          background: 'rgba(15, 23, 42, 0.8)',
-                          border: '1px solid var(--border-subtle)',
+                          background: 'rgba(15, 23, 42, 0.9)',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
                           overflow: 'hidden',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
+                          cursor: 'pointer',
+                          position: 'relative',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                          transition: 'transform 0.15s, border-color 0.15s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.08)';
+                          e.currentTarget.style.borderColor = '#38bdf8';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.3)';
                         }}
                       >
                         {prod.fotoUrl ? (
@@ -479,8 +537,20 @@ export const EstoqueTab: React.FC = () => {
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           />
                         ) : (
-                          <ImageIcon size={18} color="var(--text-dim)" />
+                          <ImageIcon size={20} color="#64748b" />
                         )}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            right: 0,
+                            background: 'rgba(2, 6, 23, 0.85)',
+                            padding: '2px',
+                            borderTopLeftRadius: '4px',
+                          }}
+                        >
+                          <Eye size={10} color="#38bdf8" />
+                        </div>
                       </div>
                     </td>
 
@@ -496,11 +566,15 @@ export const EstoqueTab: React.FC = () => {
                       )}
                     </td>
 
-                    {/* Descrição e Localização */}
-                    <td style={{ padding: '12px 14px' }}>
+                    {/* Descrição, Aplicação e Localização */}
+                    <td style={{ padding: '12px 14px', maxWidth: '320px' }}>
                       <div style={{ fontWeight: 600 }}>{prod.descricao}</div>
+                      {prod.aplicacoes && (
+                        <div style={{ fontSize: '0.73rem', color: '#93c5fd', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Car size={11} /> {prod.aplicacoes.length > 45 ? `${prod.aplicacoes.slice(0, 45)}...` : prod.aplicacoes}
+                        </div>
+                      )}
                       <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', gap: '8px', marginTop: '2px' }}>
-                        <span>Custo: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.precoCusto)}</span>
                         {prod.localizacao && (
                           <span style={{ color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '2px' }}>
                             <MapPin size={11} /> {prod.localizacao}
@@ -509,30 +583,68 @@ export const EstoqueTab: React.FC = () => {
                       </div>
                     </td>
 
+                    {/* Marca e Código Original (OEM) */}
+                    <td style={{ padding: '12px 14px' }}>
+                      {prod.marca ? (
+                        <span className="badge badge-primary" style={{ fontWeight: 700, fontSize: '0.72rem' }}>
+                          {prod.marca}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#64748b', fontSize: '0.72rem' }}>—</span>
+                      )}
+                      {prod.codigoOriginal && (
+                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'monospace', marginTop: '2px' }}>
+                          OEM: {prod.codigoOriginal}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Validade e Lote */}
+                    <td style={{ padding: '12px 14px' }}>
+                      {prod.dataValidade ? (
+                        <div>
+                          {prod.statusValidade === 'VENCIDO' ? (
+                            <span
+                              className="badge badge-danger"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.7rem' }}
+                            >
+                              <AlertTriangle size={11} /> Vencido
+                            </span>
+                          ) : prod.statusValidade === 'ALERTA' ? (
+                            <span
+                              className="badge badge-amber"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.7rem' }}
+                            >
+                              <Calendar size={11} /> Vence em {prod.diasParaVencer}d
+                            </span>
+                          ) : (
+                            <span
+                              className="badge badge-green"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.7rem' }}
+                            >
+                              <CheckCircle2 size={11} /> Válido
+                            </span>
+                          )}
+                          <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
+                            {new Date(prod.dataValidade).toLocaleDateString('pt-BR')}
+                            {prod.lote && ` (Lt: ${prod.lote})`}
+                          </div>
+                        </div>
+                      ) : (
+                        <span style={{ color: '#64748b', fontSize: '0.72rem' }}>Sem validade</span>
+                      )}
+                    </td>
+
                     <td style={{ padding: '12px 14px' }}>
                       <span className="badge badge-gray">{prod.unidadeMedida}</span>
                     </td>
                     <td style={{ padding: '12px 14px', fontWeight: 600, color: '#38bdf8' }}>
                       {prod.custoMedio ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.custoMedio) : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.precoCusto)}
                     </td>
-                    <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                      {prod.ultimoPrecoCompra ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.ultimoPrecoCompra) : '—'}
-                    </td>
-                    <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                      {prod.ultimoPrecoVenda ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.ultimoPrecoVenda) : '—'}
-                    </td>
                     <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--accent-green)' }}>
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.precoVenda)}
                     </td>
                     <td style={{ padding: '12px 14px', fontWeight: 600 }}>{prod.saldoFisico}</td>
-                    <td
-                      style={{
-                        padding: '12px 14px',
-                        color: prod.saldoReservado > 0 ? 'var(--accent-amber)' : 'var(--text-muted)',
-                      }}
-                    >
-                      {prod.saldoReservado}
-                    </td>
                     <td
                       style={{
                         padding: '12px 14px',
@@ -555,6 +667,14 @@ export const EstoqueTab: React.FC = () => {
                     </td>
                     <td style={{ padding: '12px 14px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={() => setProdutoFichaTecnica(prod)}
+                          className="btn btn-secondary"
+                          style={{ padding: '5px 8px', fontSize: '0.74rem', color: '#38bdf8' }}
+                          title="Abrir Ficha Técnica Completa"
+                        >
+                          <Eye size={13} /> Ficha
+                        </button>
                         <button
                           onClick={() => abrirEdicaoProduto(prod)}
                           className="btn btn-secondary"
@@ -663,6 +783,130 @@ export const EstoqueTab: React.FC = () => {
                   placeholder="Ex: Amortecedor Dianteiro Direito Cofap"
                   value={formDescricao}
                   onChange={(e) => setFormDescricao(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+
+              {/* Informações Técnicas Automotivas (Melhores Práticas) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label className="input-label">Marca / Fabricante</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Motul, Bosch, Cofap, NGK, Fremax"
+                    value={formMarca}
+                    onChange={(e) => setFormMarca(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="input-label">Modelo / Linha Técnica</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 8100 X-cess, Pastilha Cerâmica"
+                    value={formModelo}
+                    onChange={(e) => setFormModelo(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label className="input-label">Categoria Automotiva</label>
+                  <select
+                    value={formCategoria}
+                    onChange={(e) => setFormCategoria(e.target.value)}
+                    className="input-field"
+                    style={{ background: '#181b22' }}
+                  >
+                    <option value="">Selecione a Categoria...</option>
+                    <option value="Lubrificantes & Fluidos">Lubrificantes & Fluidos</option>
+                    <option value="Filtros">Filtros (Óleo, Ar, Cabine, Combustível)</option>
+                    <option value="Sistema de Freios">Sistema de Freios (Pastilhas, Discos, Fluidos)</option>
+                    <option value="Suspensão & Direção">Suspensão & Direção</option>
+                    <option value="Motor & Transmissão">Motor & Transmissão</option>
+                    <option value="Arrefecimento">Arrefecimento (Aditivos, Radiador)</option>
+                    <option value="Ignição & Elétrica">Ignição & Elétrica (Velas, Bobinas, Bateria)</option>
+                    <option value="Pneus & Rodas">Pneus & Rodas</option>
+                    <option value="Acessórios & Outros">Acessórios & Outros</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="input-label">Código Original da Montadora (OEM)</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 04465-02220, 51832145"
+                    value={formCodigoOriginal}
+                    onChange={(e) => setFormCodigoOriginal(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
+              {/* Aplicação Veicular / Veículos Compatíveis */}
+              <div>
+                <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Car size={14} color="#38bdf8" /> Veículos Compatíveis & Aplicação Técnica (Cross-Reference)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Ex: Toyota Corolla 1.8/2.0 2014-2022, Honda Civic 2.0 2016+, GM Tracker 1.2 Turbo"
+                  value={formAplicacoes}
+                  onChange={(e) => setFormAplicacoes(e.target.value)}
+                  className="input-field"
+                  style={{ resize: 'vertical', fontSize: '0.82rem' }}
+                />
+                <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                  Dica: Mecânicos e balconistas poderão localizar essa peça digitando o modelo do veículo na busca.
+                </span>
+              </div>
+
+              {/* Controle de Validade e Lote (Melhores Práticas de Lubrificantes e Químicos) */}
+              <div
+                style={{
+                  background: 'rgba(56, 189, 248, 0.04)',
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid rgba(56, 189, 248, 0.2)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: '#38bdf8', fontWeight: 600, fontSize: '0.82rem' }}>
+                  <Calendar size={14} /> Controle de Validade & Rastreabilidade de Lote
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label className="input-label">Lote de Fabricação</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: LT-2026-B8"
+                      value={formLote}
+                      onChange={(e) => setFormLote(e.target.value)}
+                      className="input-field"
+                    />
+                  </div>
+                  <div>
+                    <label className="input-label">Data de Validade</label>
+                    <input
+                      type="date"
+                      value={formDataValidade}
+                      onChange={(e) => setFormDataValidade(e.target.value)}
+                      className="input-field"
+                    />
+                  </div>
+                </div>
+                <div style={{ marginTop: '6px', fontSize: '0.7rem', color: '#94a3b8' }}>
+                  Obrigatório/recomendado para óleos lubrificantes, aditivos de radiador, fluidos de freio DOT 4 e componentes químicos.
+                </div>
+              </div>
+
+              <div>
+                <label className="input-label">Especificações Técnicas Adicionais</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Viscosidade 5W-30 API SP, ILSAC GF-6A, Diâmetro 280mm"
+                  value={formEspecificacoes}
+                  onChange={(e) => setFormEspecificacoes(e.target.value)}
                   className="input-field"
                 />
               </div>
@@ -825,6 +1069,126 @@ export const EstoqueTab: React.FC = () => {
                   required
                   value={formDescricao}
                   onChange={(e) => setFormDescricao(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label className="input-label">Marca / Fabricante</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Motul, Bosch, Cofap, NGK, Fremax"
+                    value={formMarca}
+                    onChange={(e) => setFormMarca(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="input-label">Modelo / Linha Técnica</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 8100 X-cess, Pastilha Cerâmica"
+                    value={formModelo}
+                    onChange={(e) => setFormModelo(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label className="input-label">Categoria Automotiva</label>
+                  <select
+                    value={formCategoria}
+                    onChange={(e) => setFormCategoria(e.target.value)}
+                    className="input-field"
+                    style={{ background: '#181b22' }}
+                  >
+                    <option value="">Selecione a Categoria...</option>
+                    <option value="Lubrificantes & Fluidos">Lubrificantes & Fluidos</option>
+                    <option value="Filtros">Filtros (Óleo, Ar, Cabine, Combustível)</option>
+                    <option value="Sistema de Freios">Sistema de Freios (Pastilhas, Discos, Fluidos)</option>
+                    <option value="Suspensão & Direção">Suspensão & Direção</option>
+                    <option value="Motor & Transmissão">Motor & Transmissão</option>
+                    <option value="Arrefecimento">Arrefecimento (Aditivos, Radiador)</option>
+                    <option value="Ignição & Elétrica">Ignição & Elétrica (Velas, Bobinas, Bateria)</option>
+                    <option value="Pneus & Rodas">Pneus & Rodas</option>
+                    <option value="Acessórios & Outros">Acessórios & Outros</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="input-label">Código Original da Montadora (OEM)</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 04465-02220, 51832145"
+                    value={formCodigoOriginal}
+                    onChange={(e) => setFormCodigoOriginal(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
+              {/* Aplicação Veicular / Veículos Compatíveis */}
+              <div>
+                <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Car size={14} color="#38bdf8" /> Veículos Compatíveis & Aplicação Técnica (Cross-Reference)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Ex: Toyota Corolla 1.8/2.0 2014-2022, Honda Civic 2.0 2016+, GM Tracker 1.2 Turbo"
+                  value={formAplicacoes}
+                  onChange={(e) => setFormAplicacoes(e.target.value)}
+                  className="input-field"
+                  style={{ resize: 'vertical', fontSize: '0.82rem' }}
+                />
+                <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                  Dica: Mecânicos e balconistas poderão localizar essa peça digitando o modelo do veículo na busca.
+                </span>
+              </div>
+
+              {/* Controle de Validade e Lote */}
+              <div
+                style={{
+                  background: 'rgba(56, 189, 248, 0.04)',
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid rgba(56, 189, 248, 0.2)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: '#38bdf8', fontWeight: 600, fontSize: '0.82rem' }}>
+                  <Calendar size={14} /> Controle de Validade & Rastreabilidade de Lote
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label className="input-label">Lote de Fabricação</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: LT-2026-B8"
+                      value={formLote}
+                      onChange={(e) => setFormLote(e.target.value)}
+                      className="input-field"
+                    />
+                  </div>
+                  <div>
+                    <label className="input-label">Data de Validade</label>
+                    <input
+                      type="date"
+                      value={formDataValidade}
+                      onChange={(e) => setFormDataValidade(e.target.value)}
+                      className="input-field"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="input-label">Especificações Técnicas Adicionais</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Viscosidade 5W-30 API SP, ILSAC GF-6A, Diâmetro 280mm"
+                  value={formEspecificacoes}
+                  onChange={(e) => setFormEspecificacoes(e.target.value)}
                   className="input-field"
                 />
               </div>
@@ -1143,6 +1507,18 @@ export const EstoqueTab: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal Card Ficha Técnica Completa (Clique na Foto da Peça) */}
+      {produtoFichaTecnica && (
+        <ModalFichaTecnicaProduto
+          produto={produtoFichaTecnica}
+          onClose={() => setProdutoFichaTecnica(null)}
+          onEditar={(prod) => {
+            setProdutoFichaTecnica(null);
+            abrirEdicaoProduto(prod);
+          }}
+        />
       )}
     </div>
   );

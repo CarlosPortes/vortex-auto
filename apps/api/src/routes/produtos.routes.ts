@@ -38,6 +38,11 @@ export async function produtosRoutes(app: FastifyInstance) {
         { descricao: { contains: q, mode: 'insensitive' } },
         { codigoBarras: { contains: q, mode: 'insensitive' } },
         { localizacao: { contains: q, mode: 'insensitive' } },
+        { marca: { contains: q, mode: 'insensitive' } },
+        { modelo: { contains: q, mode: 'insensitive' } },
+        { categoria: { contains: q, mode: 'insensitive' } },
+        { codigoOriginal: { contains: q, mode: 'insensitive' } },
+        { aplicacoes: { contains: q, mode: 'insensitive' } },
       ];
     }
 
@@ -45,6 +50,10 @@ export async function produtosRoutes(app: FastifyInstance) {
       where,
       orderBy: { descricao: 'asc' },
     });
+
+    const hoje = new Date();
+    const em60Dias = new Date();
+    em60Dias.setDate(hoje.getDate() + 60);
 
     const itens = produtos
       .map((p) => {
@@ -54,11 +63,38 @@ export async function produtosRoutes(app: FastifyInstance) {
         const estoqueMinimo = Number(p.estoqueMinimo);
         const abaixoMinimo = saldoDisponivel < estoqueMinimo;
 
+        let statusValidade: 'VENCIDO' | 'ALERTA' | 'VALIDO' | 'NAO_APLICA' = 'NAO_APLICA';
+        let diasParaVencer: number | null = null;
+
+        if (p.dataValidade) {
+          const valDate = new Date(p.dataValidade);
+          const diffMs = valDate.getTime() - hoje.getTime();
+          diasParaVencer = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+          if (diffMs < 0) {
+            statusValidade = 'VENCIDO';
+          } else if (valDate <= em60Dias) {
+            statusValidade = 'ALERTA';
+          } else {
+            statusValidade = 'VALIDO';
+          }
+        }
+
         return {
           id: p.id,
           codigo: p.codigo,
           codigoBarras: p.codigoBarras,
           descricao: p.descricao,
+          marca: p.marca,
+          modelo: p.modelo,
+          categoria: p.categoria,
+          codigoOriginal: p.codigoOriginal,
+          aplicacoes: p.aplicacoes,
+          especificacoes: p.especificacoes,
+          lote: p.lote,
+          dataValidade: p.dataValidade ? p.dataValidade.toISOString() : null,
+          statusValidade,
+          diasParaVencer,
           localizacao: p.localizacao,
           fotoUrl: p.fotoUrl,
           unidadeMedida: p.unidadeMedida,
@@ -127,6 +163,14 @@ export async function produtosRoutes(app: FastifyInstance) {
         codigo: p.codigo,
         codigoBarras: p.codigoBarras,
         descricao: p.descricao,
+        marca: p.marca,
+        modelo: p.modelo,
+        categoria: p.categoria,
+        codigoOriginal: p.codigoOriginal,
+        aplicacoes: p.aplicacoes,
+        especificacoes: p.especificacoes,
+        lote: p.lote,
+        dataValidade: p.dataValidade ? p.dataValidade.toISOString() : null,
         localizacao: p.localizacao,
         fotoUrl: p.fotoUrl,
         unidadeMedida: p.unidadeMedida,
@@ -170,6 +214,14 @@ export async function produtosRoutes(app: FastifyInstance) {
         codigo: p.codigo,
         codigoBarras: p.codigoBarras,
         descricao: p.descricao,
+        marca: p.marca,
+        modelo: p.modelo,
+        categoria: p.categoria,
+        codigoOriginal: p.codigoOriginal,
+        aplicacoes: p.aplicacoes,
+        especificacoes: p.especificacoes,
+        lote: p.lote,
+        dataValidade: p.dataValidade ? p.dataValidade.toISOString() : null,
         localizacao: p.localizacao,
         fotoUrl: p.fotoUrl,
         unidadeMedida: p.unidadeMedida,
@@ -231,6 +283,14 @@ export async function produtosRoutes(app: FastifyInstance) {
             codigo: data.codigo.trim().toUpperCase(),
             codigoBarras: data.codigoBarras?.trim() || null,
             descricao: data.descricao.trim(),
+            marca: data.marca?.trim() || null,
+            modelo: data.modelo?.trim() || null,
+            categoria: data.categoria?.trim() || null,
+            codigoOriginal: data.codigoOriginal?.trim() || null,
+            aplicacoes: data.aplicacoes?.trim() || null,
+            especificacoes: data.especificacoes?.trim() || null,
+            lote: data.lote?.trim() || null,
+            dataValidade: data.dataValidade ? new Date(data.dataValidade) : null,
             localizacao: data.localizacao?.trim() || null,
             fotoUrl: data.fotoUrl?.trim() || null,
             unidadeMedida: data.unidadeMedida.trim().toUpperCase(),
@@ -273,6 +333,7 @@ export async function produtosRoutes(app: FastifyInstance) {
         detalhes: {
           codigo: novoProduto.codigo,
           descricao: novoProduto.descricao,
+          marca: novoProduto.marca,
           codigoBarras: novoProduto.codigoBarras,
           localizacao: novoProduto.localizacao,
           saldoInicial: data.saldoInicial,
@@ -311,6 +372,14 @@ export async function produtosRoutes(app: FastifyInstance) {
         where: { id: prod.id },
         data: {
           descricao: body.descricao ? body.descricao.trim() : prod.descricao,
+          marca: body.marca !== undefined ? (body.marca ? body.marca.trim() : null) : prod.marca,
+          modelo: body.modelo !== undefined ? (body.modelo ? body.modelo.trim() : null) : prod.modelo,
+          categoria: body.categoria !== undefined ? (body.categoria ? body.categoria.trim() : null) : prod.categoria,
+          codigoOriginal: body.codigoOriginal !== undefined ? (body.codigoOriginal ? body.codigoOriginal.trim() : null) : prod.codigoOriginal,
+          aplicacoes: body.aplicacoes !== undefined ? (body.aplicacoes ? body.aplicacoes.trim() : null) : prod.aplicacoes,
+          especificacoes: body.especificacoes !== undefined ? (body.especificacoes ? body.especificacoes.trim() : null) : prod.especificacoes,
+          lote: body.lote !== undefined ? (body.lote ? body.lote.trim() : null) : prod.lote,
+          dataValidade: body.dataValidade !== undefined ? (body.dataValidade ? new Date(body.dataValidade) : null) : prod.dataValidade,
           codigoBarras: body.codigoBarras !== undefined ? body.codigoBarras?.trim() || null : prod.codigoBarras,
           localizacao: body.localizacao !== undefined ? body.localizacao?.trim() || null : prod.localizacao,
           fotoUrl: body.fotoUrl !== undefined ? body.fotoUrl?.trim() || null : prod.fotoUrl,

@@ -489,6 +489,14 @@ model Produto {
   ultimoPrecoCompra  Decimal?           @map("ultimo_preco_compra") @db.Decimal(12, 2)
   ultimoPrecoVenda   Decimal?           @map("ultimo_preco_venda") @db.Decimal(12, 2)
   precoVenda         Decimal            @default(0.0) @map("preco_venda") @db.Decimal(12, 2)
+  marca              String?            // Ex: Bosch, Mann-Filter, Cofap, Motul
+  modelo             String?            // Ex: Sintético 5W-30 API SP, Linha Cerâmica
+  categoria          String?            // Ex: Lubrificantes & Fluidos, Freios, Filtros, Suspensão
+  codigoOriginal     String?            @map("codigo_original") // OEM Part Number da montadora
+  aplicacoes         String?            // Aplicação veicular (ex: Corolla 1.8/2.0 2015-2023, Civic 2.0)
+  especificacoes     String?            // Normas técnicas (ex: API SP, ACEA C3, DOT 4)
+  lote               String?            // Número do lote do fabricante
+  dataValidade       DateTime?          @map("data_validade") // Validade (vital para óleos, aditivos, fluidos)
   saldoFisico        Decimal            @default(0.0) @map("saldo_fisico") @db.Decimal(12, 3)
   saldoReservado     Decimal            @default(0.0) @map("saldo_reservado") @db.Decimal(12, 3)
   estoqueMinimo      Decimal            @default(0.0) @map("estoque_minimo") @db.Decimal(12, 3)
@@ -505,6 +513,8 @@ model Produto {
   @@unique([empresaId, codigo])
   @@index([empresaId, descricao])
   @@index([empresaId, codigoBarras])
+  @@index([empresaId, marca])
+  @@index([empresaId, categoria])
   @@map("produtos")
 }
 

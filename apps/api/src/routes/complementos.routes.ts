@@ -7,6 +7,7 @@ import {
   PermissaoAcesso,
   StatusAtendimento,
   TipoOperacaoAuditoria,
+  TipoMovimentoEstoque,
 } from '@vortex/shared';
 import { tenantMiddleware, exigirPermissao } from '../middlewares/tenant.middleware.js';
 import { AuditoriaService } from '../services/auditoria.service.js';
@@ -492,29 +493,71 @@ export async function complementosRoutes(app: FastifyInstance) {
       const totalCobradoTerceiros = servicosTerceiros.reduce((acc, s) => acc + Number(s.valorCobradoCliente), 0);
       const margemTerceiros = totalCobradoTerceiros - totalCustoTerceiros;
 
-      // 7. Estoque e Peças
+      // 7. Estoque, Peças e Radar de Validades
       const produtos = await prisma.produto.findMany({
         where: { empresaId: tenant.empresaId, ativo: true },
         select: {
           id: true,
+          codigo: true,
+          descricao: true,
+          marca: true,
+          categoria: true,
+          lote: true,
+          dataValidade: true,
           saldoFisico: true,
           saldoReservado: true,
           estoqueMinimo: true,
           precoCusto: true,
+          custoMedio: true,
           precoVenda: true,
         },
       });
 
+      const agora = new Date();
+      const limiteAlertaValidade = new Date();
+      limiteAlertaValidade.setDate(agora.getDate() + 60);
+
       const totalProdutos = produtos.length;
       const produtosCriticos = produtos.filter((p) => Number(p.saldoFisico) <= Number(p.estoqueMinimo)).length;
       const valorTotalEstoqueCusto = produtos.reduce(
-        (acc, p) => acc + Number(p.saldoFisico) * Number(p.precoCusto),
+        (acc, p) => acc + Number(p.saldoFisico) * (Number(p.custoMedio) > 0 ? Number(p.custoMedio) : Number(p.precoCusto)),
         0
       );
       const valorTotalEstoqueVenda = produtos.reduce(
         (acc, p) => acc + Number(p.saldoFisico) * Number(p.precoVenda),
         0
       );
+
+      const itensValidadeVencida = produtos.filter(
+        (p) => p.dataValidade && new Date(p.dataValidade) < agora && Number(p.saldoFisico) > 0
+      );
+
+      const itensValidadeAlerta = produtos.filter(
+        (p) =>
+          p.dataValidade &&
+          new Date(p.dataValidade) >= agora &&
+          new Date(p.dataValidade) <= limiteAlertaValidade &&
+          Number(p.saldoFisico) > 0
+      );
+
+      const radarValidades = [...itensValidadeVencida, ...itensValidadeAlerta]
+        .map((p) => {
+          const valDate = new Date(p.dataValidade!);
+          const diffMs = valDate.getTime() - agora.getTime();
+          const diasParaVencer = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+          return {
+            id: p.id,
+            codigo: p.codigo,
+            descricao: p.descricao,
+            marca: p.marca || 'N/I',
+            lote: p.lote || 'N/I',
+            dataValidade: valDate.toISOString(),
+            diasParaVencer,
+            saldoFisico: Number(p.saldoFisico),
+            status: diffMs < 0 ? 'VENCIDO' : 'ALERTA',
+          };
+        })
+        .sort((a, b) => a.diasParaVencer - b.diasParaVencer);
 
       // 8. Garantias
       const garantias = await prisma.garantiaAtendimento.groupBy({
@@ -529,6 +572,25 @@ export async function complementosRoutes(app: FastifyInstance) {
         .reduce((acc, g) => acc + g._count.id, 0);
       const garantiasRecusadas = garantias.find((g) => g.decisao === 'RECUSADA')?._count.id || 0;
 
+      // 9. DRE Simplificado da Oficina
+      // CMV estimado: soma de saídas de consumo e vendas balcão pelo custo médio
+      const movimentosConsumo = await prisma.movimentoEstoque.findMany({
+        where: {
+          empresaId: tenant.empresaId,
+          tipo: { in: [TipoMovimentoEstoque.CONSUMO, TipoMovimentoEstoque.VENDA_DIRETA] },
+        },
+        include: { produto: { select: { custoMedio: true, precoCusto: true } } },
+      });
+
+      const cmvTotal = movimentosConsumo.reduce((acc, m) => {
+        const custo = Number(m.produto.custoMedio) > 0 ? Number(m.produto.custoMedio) : Number(m.produto.precoCusto);
+        return acc + Number(m.quantidade) * custo;
+      }, 0);
+
+      const faturamentoTotalGeral = faturamentoTotalRealizado;
+      const margemBrutaOficina = faturamentoTotalGeral - cmvTotal - totalCustoTerceiros;
+      const margemBrutaPercentual = faturamentoTotalGeral > 0 ? Math.round((margemBrutaOficina / faturamentoTotalGeral) * 100) : 0;
+
       return reply.send({
         sucesso: true,
         dados: {
@@ -537,6 +599,13 @@ export async function complementosRoutes(app: FastifyInstance) {
             totalSaldoPendente,
             ticketMedio,
             totalRecebimentos: recebimentos._count.id,
+          },
+          dre: {
+            faturamentoBruto: faturamentoTotalGeral,
+            cmvTotal,
+            custosTerceiros: totalCustoTerceiros,
+            lucroBruto: margemBrutaOficina,
+            margemBrutaPercentual,
           },
           atendimentos: {
             total: totalAtendimentos,
@@ -558,8 +627,11 @@ export async function complementosRoutes(app: FastifyInstance) {
           estoque: {
             totalItensCadastrados: totalProdutos,
             itensEstoqueCritico: produtosCriticos,
+            itensValidadeVencida: itensValidadeVencida.length,
+            itensValidadeAlerta: itensValidadeAlerta.length,
             valorTotalEstoqueCusto,
             valorTotalEstoqueVenda,
+            radarValidades,
           },
           garantias: {
             total: totalGarantias,
