@@ -1,0 +1,72 @@
+services:
+  # -------------------------------------------------------------
+  # Banco de Dados Relacional - PostgreSQL (Isolado na rede interna)
+  # -------------------------------------------------------------
+  vortex-db:
+    image: postgres:17-alpine
+    container_name: vortex-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vortex_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-AltereEssaSenhaForte2026!}
+      POSTGRES_DB: ${POSTGRES_DB:-vortex_auto}
+    # Porta não exposta externamente para segurança e evitar conflito com outros Postgres da VPS
+    expose:
+      - "5432"
+    volumes:
+      - vortex_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vortex_admin} -d ${POSTGRES_DB:-vortex_auto}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vortex-net
+
+  # -------------------------------------------------------------
+  # Backend API - Fastify + Prisma + Multi-Tenant
+  # -------------------------------------------------------------
+  vortex-api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: vortex-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3333
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vortex_admin}:${POSTGRES_PASSWORD:-AltereEssaSenhaForte2026!}@vortex-db:5432/${POSTGRES_DB:-vortex_auto}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-gerar_chave_secreta_jwt_longa_com_ao_menos_64_caracteres_aleatorios}
+    expose:
+      - "3333"
+    depends_on:
+      vortex-db:
+        condition: service_healthy
+    networks:
+      - vortex-net
+
+  # -------------------------------------------------------------
+  # Frontend Web - React + Vite + Nginx SPA (com reverse proxy /api interno)
+  # -------------------------------------------------------------
+  vortex-web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: vortex-web
+    restart: unless-stopped
+    # Mapeado em porta exclusiva (ex: 3080) para não colidir com as outras aplicações (minihubcar e ativoarboreo)
+    ports:
+      - "127.0.0.1:3080:80"
+    depends_on:
+      - vortex-api
+    networks:
+      - vortex-net
+
+networks:
+  vortex-net:
+    driver: bridge
+
+volumes:
+  vortex_pgdata:
+    driver: local
