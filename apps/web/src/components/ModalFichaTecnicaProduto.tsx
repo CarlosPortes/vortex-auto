@@ -48,29 +48,29 @@ export const ModalFichaTecnicaProduto: React.FC<ModalFichaTecnicaProdutoProps> =
 
     if (diffMs < 0) {
       statusValidadeBadge = (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">
-          <AlertTriangle className="w-3.5 h-3.5" />
+        <span className="badge badge-danger" style={{ fontSize: '0.75rem', padding: '4px 10px' }}>
+          <AlertTriangle size={13} />
           Vencido há {Math.abs(dias)} dias ({dataVal.toLocaleDateString('pt-BR')})
         </span>
       );
     } else if (dias <= 60) {
       statusValidadeBadge = (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-          <Clock className="w-3.5 h-3.5" />
+        <span className="badge badge-amber" style={{ fontSize: '0.75rem', padding: '4px 10px' }}>
+          <Clock size={13} />
           Atenção: Vence em {dias} dias ({dataVal.toLocaleDateString('pt-BR')})
         </span>
       );
     } else {
       statusValidadeBadge = (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-          <CheckCircle className="w-3.5 h-3.5" />
+        <span className="badge badge-green" style={{ fontSize: '0.75rem', padding: '4px 10px' }}>
+          <CheckCircle size={13} />
           Válido até {dataVal.toLocaleDateString('pt-BR')} ({dias} dias)
         </span>
       );
     }
   }
 
-  // Processar veículos compatíveis em tags se houver separação por vírgula ou ponto-e-vírgula
+  // Processar veículos compatíveis em tags
   const aplicacoesArray = produto.aplicacoes
     ? produto.aplicacoes
         .split(/[,;\n]+/)
@@ -80,36 +80,67 @@ export const ModalFichaTecnicaProduto: React.FC<ModalFichaTecnicaProdutoProps> =
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.82)',
+        backdropFilter: 'blur(8px)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+      }}
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl text-slate-100 flex flex-col"
+        className="glass-panel"
+        style={{
+          maxWidth: '820px',
+          width: '100%',
+          maxHeight: '92vh',
+          overflowY: 'auto',
+          padding: '24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header com degradê e botão de fechar */}
-        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-slate-900/95 backdrop-blur-md border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
-              <Package className="w-6 h-6" />
+        {/* Header com SKU e botão de fechar */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '10px',
+                background: 'rgba(14, 165, 233, 0.15)',
+                border: '1px solid rgba(14, 165, 233, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--primary)',
+              }}
+            >
+              <Package size={22} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                  SKU: {produto.codigo}
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span className="badge badge-blue">SKU: {produto.codigo}</span>
                 {produto.marca && (
-                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 uppercase">
+                  <span className="badge badge-purple" style={{ textTransform: 'uppercase' }}>
                     {produto.marca}
                   </span>
                 )}
                 {produto.categoria && (
-                  <span className="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  <span className="badge badge-amber">
                     {produto.categoria}
                   </span>
                 )}
               </div>
-              <h2 className="text-xl font-bold text-white mt-1 leading-snug">
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '4px' }}>
                 {produto.descricao}
               </h2>
             </div>
@@ -117,243 +148,250 @@ export const ModalFichaTecnicaProduto: React.FC<ModalFichaTecnicaProdutoProps> =
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
             title="Fechar Ficha Técnica"
           >
-            <X className="w-5 h-5" />
+            <X size={20} />
           </button>
         </div>
 
-        {/* Conteúdo Principal */}
-        <div className="p-6 space-y-6">
-          {/* Seção Superior: Imagem em Alta e Dados Chave */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-            {/* Foto Ampliada */}
-            <div className="md:col-span-5 flex flex-col items-center">
-              <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center group shadow-inner">
-                {produto.fotoUrl ? (
-                  <img
-                    src={produto.fotoUrl}
-                    alt={produto.descricao}
-                    className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-slate-600 gap-2 p-6 text-center">
-                    <Package className="w-16 h-16 stroke-1 text-slate-700" />
-                    <span className="text-xs text-slate-500">Sem foto cadastrada</span>
-                  </div>
-                )}
+        {/* Linha Superior: Foto Ampliada e Ficha Cadastral */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', alignItems: 'start' }}>
+          {/* Foto da Peça */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div
+              style={{
+                width: '100%',
+                aspectRatio: '1/1',
+                borderRadius: 'var(--radius-md)',
+                background: 'rgba(15, 23, 42, 0.95)',
+                border: '1px solid var(--border-subtle)',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)',
+              }}
+            >
+              {produto.fotoUrl ? (
+                <img
+                  src={produto.fotoUrl}
+                  alt={produto.descricao}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '12px' }}
+                />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: 'var(--text-dim)' }}>
+                  <Package size={48} strokeWidth={1} />
+                  <span style={{ fontSize: '0.75rem' }}>Sem foto cadastrada</span>
+                </div>
+              )}
 
-                {/* Badge flutuante de validade se houver */}
-                {statusValidadeBadge && (
-                  <div className="absolute top-3 left-3 right-3 flex justify-center">
-                    {statusValidadeBadge}
-                  </div>
-                )}
-              </div>
-
-              {/* Botão copiar SKU */}
-              <div className="w-full mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => copiarTexto(produto.codigo, 'SKU')}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 transition-colors"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  {copiado === 'SKU' ? 'Copiado!' : `Copiar SKU: ${produto.codigo}`}
-                </button>
-                {produto.codigoBarras && (
-                  <button
-                    type="button"
-                    onClick={() => copiarTexto(produto.codigoBarras!, 'EAN')}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 transition-colors"
-                  >
-                    <Barcode className="w-3.5 h-3.5" />
-                    {copiado === 'EAN' ? 'Copiado!' : 'Copiar EAN'}
-                  </button>
-                )}
-              </div>
+              {statusValidadeBadge && (
+                <div style={{ position: 'absolute', top: '12px', left: '12px', right: '12px', display: 'flex', justifyContent: 'center' }}>
+                  {statusValidadeBadge}
+                </div>
+              )}
             </div>
 
-            {/* Informações Técnicas e Cadastrais */}
-            <div className="md:col-span-7 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-800">
-                  <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                    <Tag className="w-3.5 h-3.5 text-blue-400" /> Fabricante / Marca
-                  </span>
-                  <p className="text-sm font-semibold text-white mt-1">
-                    {produto.marca || <span className="text-slate-500 italic">Não informado</span>}
-                  </p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-800">
-                  <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                    <Package className="w-3.5 h-3.5 text-purple-400" /> Modelo / Linha
-                  </span>
-                  <p className="text-sm font-semibold text-white mt-1">
-                    {produto.modelo || <span className="text-slate-500 italic">Não informado</span>}
-                  </p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-800">
-                  <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                    <Hash className="w-3.5 h-3.5 text-cyan-400" /> Código Original (OEM)
-                  </span>
-                  <p className="text-sm font-semibold text-white mt-1 font-mono">
-                    {produto.codigoOriginal || <span className="text-slate-500 italic">Sem código OEM</span>}
-                  </p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-800">
-                  <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                    <Barcode className="w-3.5 h-3.5 text-emerald-400" /> Código de Barras (EAN)
-                  </span>
-                  <p className="text-sm font-semibold text-white mt-1 font-mono">
-                    {produto.codigoBarras || <span className="text-slate-500 italic">Não cadastrado</span>}
-                  </p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-800">
-                  <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-amber-400" /> Lote de Fabricação
-                  </span>
-                  <p className="text-sm font-semibold text-white mt-1 font-mono">
-                    {produto.lote || <span className="text-slate-500 italic">Não especificado</span>}
-                  </p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-800">
-                  <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-rose-400" /> Localização no Estoque (WMS)
-                  </span>
-                  <p className="text-sm font-semibold text-white mt-1">
-                    {produto.localizacao || <span className="text-slate-500 italic">Geral / Não atribuído</span>}
-                  </p>
-                </div>
-              </div>
-
-              {/* Especificações Técnicas Adicionais */}
-              {produto.especificacoes && (
-                <div className="p-3.5 rounded-xl bg-slate-800/40 border border-slate-800">
-                  <span className="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-1">
-                    <Layers className="w-4 h-4 text-cyan-400" /> Especificações e Propriedades Técnicas
-                  </span>
-                  <p className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
-                    {produto.especificacoes}
-                  </p>
-                </div>
+            {/* Ações de cópia de SKU/EAN */}
+            <div style={{ display: 'flex', gap: '8px', width: '100%', marginTop: '10px' }}>
+              <button
+                type="button"
+                onClick={() => copiarTexto(produto.codigo, 'SKU')}
+                className="btn btn-secondary"
+                style={{ flex: 1, padding: '7px 10px', fontSize: '0.75rem' }}
+              >
+                <Copy size={13} />
+                {copiado === 'SKU' ? 'Copiado!' : `Copiar SKU`}
+              </button>
+              {produto.codigoBarras && (
+                <button
+                  type="button"
+                  onClick={() => copiarTexto(produto.codigoBarras!, 'EAN')}
+                  className="btn btn-secondary"
+                  style={{ flex: 1, padding: '7px 10px', fontSize: '0.75rem' }}
+                >
+                  <Barcode size={13} />
+                  {copiado === 'EAN' ? 'Copiado!' : `Copiar EAN`}
+                </button>
               )}
             </div>
           </div>
 
-          {/* Seção: Compatibilidade e Aplicação Veicular (Melhores Práticas TecDoc/Aftermarket) */}
-          <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-800">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-white flex items-center gap-2">
-                <Car className="w-4 h-4 text-blue-400" />
-                Aplicação Veicular & Compatibilidade de Motores (Cross-Reference)
-              </span>
-              <span className="text-xs text-slate-400">
-                {aplicacoesArray.length > 0 ? `${aplicacoesArray.length} modelos listados` : 'Consulta técnica'}
-              </span>
+          {/* Dados Técnicos e Cadastrais */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Tag size={13} color="var(--primary)" /> Marca / Fabricante
+              </div>
+              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
+                {produto.marca || <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>Não informado</span>}
+              </div>
             </div>
 
-            {aplicacoesArray.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {aplicacoesArray.map((veiculo, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-blue-500/10 text-blue-300 border border-blue-500/20"
-                  >
-                    <Car className="w-3 h-3 text-blue-400" />
-                    {veiculo}
-                  </span>
-                ))}
+            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Package size={13} color="var(--accent-purple)" /> Modelo / Linha
               </div>
-            ) : produto.aplicacoes ? (
-              <p className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">
-                {produto.aplicacoes}
-              </p>
-            ) : (
-              <div className="py-3 text-center text-slate-500 text-xs italic">
-                Nenhum veículo compatível vinculado. Cadastre os modelos compatíveis na edição da peça para acelerar a busca dos mecânicos e orçamentos.
+              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
+                {produto.modelo || <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>Não informado</span>}
+              </div>
+            </div>
+
+            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Hash size={13} color="#38bdf8" /> Código Original (OEM)
+              </div>
+              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'monospace', marginTop: '4px' }}>
+                {produto.codigoOriginal || <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>Sem OEM</span>}
+              </div>
+            </div>
+
+            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Barcode size={13} color="var(--accent-green)" /> Código de Barras (EAN)
+              </div>
+              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'monospace', marginTop: '4px' }}>
+                {produto.codigoBarras || <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>Não cadastrado</span>}
+              </div>
+            </div>
+
+            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Calendar size={13} color="var(--accent-amber)" /> Lote de Fabricação
+              </div>
+              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'monospace', marginTop: '4px' }}>
+                {produto.lote || <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>Não especificado</span>}
+              </div>
+            </div>
+
+            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <MapPin size={13} color="#f87171" /> Local Almoxarifado (WMS)
+              </div>
+              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
+                {produto.localizacao || <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>Geral</span>}
+              </div>
+            </div>
+
+            {/* Especificações Técnicas */}
+            {produto.especificacoes && (
+              <div style={{ gridColumn: 'span 2', padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(14, 165, 233, 0.05)', border: '1px solid rgba(14, 165, 233, 0.2)' }}>
+                <div style={{ fontSize: '0.72rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                  <Layers size={13} /> Especificações e Propriedades Técnicas
+                </div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-main)', marginTop: '4px', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
+                  {produto.especificacoes}
+                </div>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Seção: Gestão de Preços, CMP e Saldo da Oficina */}
-          <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-emerald-400" />
-              Balanço Financeiro, Custo Médio e Saldos Físicos
-            </h4>
+        {/* Aplicação Veicular & Motores Compatíveis */}
+        <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Car size={16} color="var(--primary)" />
+              Aplicação Veicular & Compatibilidade de Motores (Cross-Reference)
+            </span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              {aplicacoesArray.length > 0 ? `${aplicacoesArray.length} modelos listados` : 'Consulta técnica'}
+            </span>
+          </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-                <span className="text-[11px] text-slate-400 font-medium">Preço de Venda</span>
-                <p className="text-lg font-bold text-emerald-400 mt-0.5">
-                  R$ {Number(produto.precoVenda).toFixed(2)}
-                </p>
-                <span className="text-[10px] text-slate-500">Unidade: {produto.unidadeMedida}</span>
+          {aplicacoesArray.length > 0 ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {aplicacoesArray.map((veiculo, idx) => (
+                <span key={idx} className="badge badge-blue" style={{ fontSize: '0.76rem', padding: '5px 10px' }}>
+                  <Car size={12} /> {veiculo}
+                </span>
+              ))}
+            </div>
+          ) : produto.aplicacoes ? (
+            <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', whiteSpace: 'pre-wrap' }}>
+              {produto.aplicacoes}
+            </p>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '10px', color: 'var(--text-dim)', fontSize: '0.78rem', fontStyle: 'italic' }}>
+              Nenhum veículo compatível vinculado. Cadastre os modelos compatíveis na edição da peça para acelerar a busca dos mecânicos.
+            </div>
+          )}
+        </div>
+
+        {/* Balanço Financeiro, CMP e Saldos */}
+        <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', background: 'rgba(15, 23, 42, 0.6)', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+            <DollarSign size={14} color="var(--accent-green)" />
+            Balanço Financeiro, Custo Médio e Saldos Físicos
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+            <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Preço de Venda</span>
+              <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--accent-green)', marginTop: '2px' }}>
+                R$ {Number(produto.precoVenda).toFixed(2)}
               </div>
-
-              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-                <span className="text-[11px] text-slate-400 font-medium">Custo Médio (CMP)</span>
-                <p className="text-lg font-bold text-cyan-400 mt-0.5">
-                  R$ {(produto.custoMedio || produto.precoCusto).toFixed(2)}
-                </p>
-                <span className="text-[10px] text-slate-500">Ponderado por entradas</span>
-              </div>
-
-              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-                <span className="text-[11px] text-slate-400 font-medium">Última Compra (NF-e)</span>
-                <p className="text-lg font-bold text-slate-300 mt-0.5">
-                  {produto.ultimoPrecoCompra ? `R$ ${produto.ultimoPrecoCompra.toFixed(2)}` : 'R$ 0,00'}
-                </p>
-                <span className="text-[10px] text-slate-500">Último valor pago</span>
-              </div>
-
-              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-                <span className="text-[11px] text-slate-400 font-medium">Última Venda Balcão/OS</span>
-                <p className="text-lg font-bold text-slate-300 mt-0.5">
-                  {produto.ultimoPrecoVenda ? `R$ ${produto.ultimoPrecoVenda.toFixed(2)}` : 'R$ 0,00'}
-                </p>
-                <span className="text-[10px] text-slate-500">Histórico de saída</span>
-              </div>
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>Unidade: {produto.unidadeMedida}</span>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-slate-800/80">
-              <div className="text-center">
-                <span className="text-xs text-slate-400">Saldo Físico</span>
-                <p className="text-base font-bold text-white mt-0.5">
-                  {produto.saldoFisico} {produto.unidadeMedida}
-                </p>
+            <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Custo Médio (CMP)</span>
+              <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>
+                R$ {(produto.custoMedio || produto.precoCusto).toFixed(2)}
               </div>
-              <div className="text-center">
-                <span className="text-xs text-slate-400">Reservado em OS</span>
-                <p className="text-base font-bold text-amber-400 mt-0.5">
-                  {produto.saldoReservado} {produto.unidadeMedida}
-                </p>
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>Ponderado por entradas</span>
+            </div>
+
+            <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Última Compra (NF-e)</span>
+              <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>
+                {produto.ultimoPrecoCompra ? `R$ ${produto.ultimoPrecoCompra.toFixed(2)}` : 'R$ 0,00'}
               </div>
-              <div className="text-center">
-                <span className="text-xs text-slate-400">Disponível Imediato</span>
-                <p
-                  className={`text-base font-bold mt-0.5 ${
-                    produto.saldoDisponivel <= produto.estoqueMinimo
-                      ? 'text-red-400'
-                      : 'text-emerald-400'
-                  }`}
-                >
-                  {produto.saldoDisponivel} {produto.unidadeMedida}
-                </p>
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>Último valor pago</span>
+            </div>
+
+            <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Última Venda Balcão</span>
+              <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>
+                {produto.ultimoPrecoVenda ? `R$ ${produto.ultimoPrecoVenda.toFixed(2)}` : 'R$ 0,00'}
+              </div>
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>Histórico de saída</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+            <div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Saldo Físico</span>
+              <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>
+                {produto.saldoFisico} {produto.unidadeMedida}
+              </div>
+            </div>
+            <div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Reservado em OS</span>
+              <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--accent-amber)', marginTop: '2px' }}>
+                {produto.saldoReservado} {produto.unidadeMedida}
+              </div>
+            </div>
+            <div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Disponível Imediato</span>
+              <div
+                style={{
+                  fontSize: '1rem',
+                  fontWeight: 800,
+                  color: produto.saldoDisponivel <= produto.estoqueMinimo ? '#f87171' : 'var(--accent-green)',
+                  marginTop: '2px',
+                }}
+              >
+                {produto.saldoDisponivel} {produto.unidadeMedida}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Rodapé com botões */}
-        <div className="sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 bg-slate-900/95 backdrop-blur-md border-t border-slate-800">
+        {/* Rodapé do Modal */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
           {onEditar && (
             <button
               type="button"
@@ -361,7 +399,7 @@ export const ModalFichaTecnicaProduto: React.FC<ModalFichaTecnicaProdutoProps> =
                 onClose();
                 onEditar(produto);
               }}
-              className="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition-colors"
+              className="btn btn-secondary"
             >
               Editar Cadastro do Item
             </button>
@@ -369,7 +407,7 @@ export const ModalFichaTecnicaProduto: React.FC<ModalFichaTecnicaProdutoProps> =
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 transition-colors"
+            className="btn btn-primary"
           >
             Fechar Ficha Técnica
           </button>
