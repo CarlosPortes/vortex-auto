@@ -282,10 +282,10 @@ export async function vendasBalcaoRoutes(app: FastifyInstance) {
       await AuditoriaService.registrar({
         empresaId: tenant.empresaId,
         usuarioId: tenant.usuarioId,
-        tipoOperacao: TipoOperacaoAuditoria.CRIACAO,
+        operacao: TipoOperacaoAuditoria.CRIACAO,
         entidade: 'VendaBalcao',
         entidadeId: venda.id,
-        dadosNovos: {
+        detalhes: {
           codigoVenda,
           clienteNome,
           formaPagamento,
@@ -369,11 +369,13 @@ export async function vendasBalcaoRoutes(app: FastifyInstance) {
       await AuditoriaService.registrar({
         empresaId: tenant.empresaId,
         usuarioId: tenant.usuarioId,
-        tipoOperacao: TipoOperacaoAuditoria.ALTERACAO,
+        operacao: TipoOperacaoAuditoria.ALTERACAO,
         entidade: 'VendaBalcao',
         entidadeId: venda.id,
-        dadosAnteriores: { status: venda.status },
-        dadosNovos: { status: StatusVendaBalcao.CANCELADA, motivoCancelamento: motivo },
+        detalhes: {
+          dadosAnteriores: { status: venda.status },
+          dadosNovos: { status: StatusVendaBalcao.CANCELADA, motivoCancelamento: motivo },
+        },
       });
     });
 

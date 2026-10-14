@@ -671,10 +671,10 @@ export async function complementosRoutes(app: FastifyInstance) {
       );
 
       for (const at of atendimentos) {
-        const valorCobranca = at.cobranca ? Number(at.cobranca.valorTotalFinal).toFixed(2) : '0.00';
+        const valorCobranca = at.cobranca ? Number(at.cobranca.valorTotal).toFixed(2) : '0.00';
         const valorPago = at.cobranca
           ? at.cobranca.parcelas
-              .reduce((acc, p) => acc + (Number(p.valorParcela) - Number(p.saldoDevedor)), 0)
+              .reduce((acc, p) => acc + (Number(p.valor) - Number(p.saldoDevedor)), 0)
               .toFixed(2)
           : '0.00';
         const saldoDevedor = at.cobranca

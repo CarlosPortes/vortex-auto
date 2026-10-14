@@ -397,7 +397,7 @@ export async function produtosRoutes(app: FastifyInstance) {
       await AuditoriaService.registrar({
         empresaId: tenant.empresaId,
         usuarioId: tenant.usuarioId,
-        operacao: TipoOperacaoAuditoria.EDICAO,
+        operacao: TipoOperacaoAuditoria.ALTERACAO,
         entidade: 'Produto',
         entidadeId: prod.id,
         detalhes: {

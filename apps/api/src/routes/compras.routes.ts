@@ -410,10 +410,10 @@ export async function comprasRoutes(app: FastifyInstance) {
       await AuditoriaService.registrar({
         empresaId: tenant.empresaId,
         usuarioId: tenant.usuarioId,
-        tipoOperacao: TipoOperacaoAuditoria.CRIACAO,
+        operacao: TipoOperacaoAuditoria.CRIACAO,
         entidade: 'Compra',
         entidadeId: compraCriada.id,
-        dadosNovos: {
+        detalhes: {
           compraId: compraCriada.id,
           fornecedor: fornecedorNome,
           numeroNota,
