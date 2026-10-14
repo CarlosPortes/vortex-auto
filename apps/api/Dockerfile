@@ -14,7 +14,8 @@ COPY apps/api/package*.json ./apps/api/
 
 RUN npm ci
 
-# Copiar código-fonte
+# Copiar código-fonte e configuração base do TypeScript
+COPY tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY apps/api ./apps/api
 

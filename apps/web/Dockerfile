@@ -14,7 +14,8 @@ COPY apps/web/package*.json ./apps/web/
 
 RUN npm ci
 
-# Copiar fontes
+# Copiar fontes e configuração base do TypeScript
+COPY tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY apps/web ./apps/web
 
