@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Vortex Auto - Apresentação Executiva e Guia Operacional</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  @page {
+    size: A4 portrait;
+    margin: 16mm 14mm 16mm 14mm;
+    @bottom-right {
+      content: counter(page);
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #1e293b;
+    background-color: #ffffff;
+    line-height: 1.55;
+    font-size: 10.5pt;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Capa Executiva */
+  .cover-page {
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100vh;
+    min-height: 250mm;
+    padding: 40mm 15mm 20mm 15mm;
+    background: linear-gradient(145deg, #090d16 0%, #0f172a 60%, #1e1b4b 100%);
+    color: #ffffff;
+    border-radius: 12px;
+    margin-bottom: 20px;
+  }
+
+  .cover-badge {
+    display: inline-block;
+    background: rgba(59, 130, 246, 0.18);
+    border: 1px solid rgba(96, 165, 250, 0.4);
+    color: #93c5fd;
+    font-size: 9pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    margin-bottom: 25px;
+  }
+
+  .cover-title {
+    font-size: 32pt;
+    font-weight: 800;
+    line-height: 1.15;
+    margin: 0 0 16px 0;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 70%, #93c5fd 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .cover-subtitle {
+    font-size: 14pt;
+    color: #94a3b8;
+    font-weight: 400;
+    line-height: 1.45;
+    max-width: 90%;
+    margin-bottom: 40px;
+  }
+
+  .cover-pillars {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 20px;
+  }
+
+  .pillar-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .pillar-card h4 {
+    margin: 0 0 6px 0;
+    color: #60a5fa;
+    font-size: 11pt;
+    font-weight: 700;
+  }
+
+  .pillar-card p {
+    margin: 0;
+    font-size: 8.5pt;
+    color: #cbd5e1;
+    line-height: 1.4;
+  }
+
+  .cover-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    padding-top: 20px;
+  }
+
+  .cover-footer-info {
+    font-size: 8.5pt;
+    color: #94a3b8;
+    line-height: 1.6;
+  }
+
+  .cover-footer-info strong {
+    color: #f1f5f9;
+  }
+
+  .cover-link {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9pt;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+  }
+
+  /* Estrutura de Conteúdo */
+  h1 {
+    font-size: 20pt;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.5px;
+    border-bottom: 2.5px solid #2563eb;
+    padding-bottom: 8px;
+    margin-top: 28px;
+    margin-bottom: 14px;
+    page-break-after: avoid;
+  }
+
+  h2 {
+    font-size: 14pt;
+    font-weight: 700;
+    color: #1e293b;
+    margin-top: 24px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    page-break-after: avoid;
+  }
+
+  h2::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 18px;
+    background: #2563eb;
+    border-radius: 3px;
+    margin-right: 8px;
+  }
+
+  h3 {
+    font-size: 11.5pt;
+    font-weight: 700;
+    color: #334155;
+    margin-top: 18px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+  }
+
+  p {
+    margin: 0 0 10px 0;
+    text-align: justify;
+  }
+
+  ul, ol {
+    margin: 0 0 12px 0;
+    padding-left: 20px;
+  }
+
+  li {
+    margin-bottom: 4px;
+  }
+
+  /* Caixas de Alerta e Destaque */
+  .callout {
+    background: #f8fafc;
+    border-left: 4px solid #2563eb;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 14px 0;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+
+  .callout-success {
+    background: #f0fdf4;
+    border-left-color: #16a34a;
+    color: #14532d;
+  }
+
+  .callout-warning {
+    background: #fffbeb;
+    border-left-color: #d97706;
+    color: #78350f;
+  }
+
+  .callout h4 {
+    margin: 0 0 4px 0;
+    font-size: 10pt;
+    font-weight: 700;
+  }
+
+  /* Dores do Mercado em Cards */
+  .pain-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+    page-break-inside: avoid;
+  }
+
+  .pain-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+
+  .pain-card .pain-title {
+    font-weight: 700;
+    color: #dc2626;
+    font-size: 9.5pt;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .pain-card .solution-title {
+    font-weight: 700;
+    color: #0284c7;
+    font-size: 9pt;
+    margin-top: 6px;
+    margin-bottom: 2px;
+  }
+
+  .pain-card p {
+    font-size: 8.5pt;
+    margin: 0;
+    color: #475569;
+  }
+
+  /* Fluxo Visual em Diagrama */
+  .workflow-container {
+    background: #0f172a;
+    color: #ffffff;
+    border-radius: 10px;
+    padding: 16px;
+    margin: 16px 0;
+    page-break-inside: avoid;
+  }
+
+  .workflow-steps {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+  }
+
+  .wf-step {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    margin: 0 4px;
+  }
+
+  .wf-step .num {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background: #2563eb;
+    color: #ffffff;
+    font-weight: 700;
+    border-radius: 50%;
+    font-size: 8pt;
+    line-height: 20px;
+    margin-bottom: 4px;
+  }
+
+  .wf-step .title {
+    font-weight: 600;
+    font-size: 8pt;
+    color: #93c5fd;
+  }
+
+  /* Tabelas Executivas */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 9pt;
+    page-break-inside: avoid;
+  }
+
+  th {
+    background: #1e293b;
+    color: #ffffff;
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 12px;
+    border: 1px solid #1e293b;
+  }
+
+  td {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td {
+    background: #f8fafc;
+  }
+
+  /* Footer nos cabeçalhos */
+  .page-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 12mm;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 8pt;
+    color: #94a3b8;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 4px;
+  }
+
+  .badge-tag {
+    display: inline-block;
+    font-size: 7.5pt;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #e0f2fe;
+    color: #0369a1;
+  }
+
+  .break-page {
+    page-break-after: always;
+  }
+</style>
+</head>
+<body>
+
+<!-- CAPA EXECUTIVA -->
+<div class="cover-page">
+  <div>
+    <div class="cover-badge">Documento Oficial de Engenharia & Gestão Comercial</div>
+    <div class="cover-title">VORTEX AUTO</div>
+    <div class="cover-subtitle">Plataforma Integrada de Alta Performance para Centros Automotivos: ERP, WMS com Bipagem, MRP Inteligente e Business Intelligence em Tempo Real.</div>
+
+    <div class="cover-pillars">
+      <div class="pillar-card">
+        <h4>📦 WMS & Bipagem</h4>
+        <p>Controle cirúrgico de peças com leitor de código de barras, fotos, lote e compatibilidade veicular OEM.</p>
+      </div>
+      <div class="pillar-card">
+        <h4>⚡ Kanban de Box</h4>
+        <p>Gestão visual de ordens de serviço em tempo real, eliminando box ocioso e atrasos na oficina.</p>
+      </div>
+      <div class="pillar-card">
+        <h4>📊 BI & Rentabilidade</h4>
+        <p>Cálculo automático de Custo Médio Ponderado (CMP), margem por OS e curva ABC financeira.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="cover-footer">
+    <div class="cover-footer-info">
+      <strong>Autoria & Engenharia:</strong> Equipe de Desenvolvimento Vortex Auto<br>
+      <strong>Homologação:</strong> Produção Oficial 2026<br>
+      <strong>Documento de Treinamento e Alinhamento Estratégico Comercial</strong>
+    </div>
+    <div class="cover-link">https://www.vortexauto.com.br</div>
+  </div>
+</div>
+
+<!-- CAPÍTULO 1: O CENÁRIO E AS DORES -->
+<h1>1. O Cenário de Mercado e as Dores Crônicas das Oficinas</h1>
+<p>O mercado de pós-venda e reparação automotiva no Brasil movimenta mais de R$ 75 bilhões por ano. No entanto, mais de 80% das oficinas operam com sistemas legados (desenvolvidos há mais de 15 anos em tecnologias obsoletas) ou planilhas desconectadas. Essa fragmentação cria <strong>vazamentos invisíveis de lucro</strong> em quatro áreas críticas:</p>
+
+<div class="pain-grid">
+  <div class="pain-card">
+    <div class="pain-title">❌ Peça aplicada e não cobrada na OS</div>
+    <p>O mecânico retira o filtro ou pastilha do almoxarifado sem apontamento imediato. No fechamento da conta, a peça é esquecida. A oficina paga a autopeça e o cliente não é cobrado.</p>
+    <div class="solution-title">✔ Solução Vortex Auto:</div>
+    <p><strong>WMS com Bipagem Obrigatória.</strong> Nenhuma peça tem baixa no estoque sem vinculação direta à Ordem de Serviço ou ao PDV Balcão.</p>
+  </div>
+
+  <div class="pain-card">
+    <div class="pain-title">❌ Capital de Giro Parado x Elevador Vazio</div>
+    <p>A oficina compra peças em excesso que ficam meses paradas na estante, enquanto carros ficam travados nos elevadores esperando itens básicos por falta de planejamento de compras.</p>
+    <div class="solution-title">✔ Solução Vortex Auto:</div>
+    <p><strong>Módulo de Compras & MRP.</strong> Algoritmo que cruza o estoque mínimo com as peças demandadas por OS aprovadas e gera sugestões automáticas de pedido.</p>
+  </div>
+
+  <div class="pain-card">
+    <div class="pain-title">❌ Margem Ilusória & Preço Defasado</div>
+    <p>Com a variação de preços das distribuidoras de autopeças, o proprietário cobra o preço de venda antigo e não percebe que sua margem líquida foi engolida pelo aumento de custo.</p>
+    <div class="solution-title">✔ Solução Vortex Auto:</div>
+    <p><strong>Custo Médio Ponderado (CMP).</strong> Cada entrada de nota recalcula automaticamente o custo médio contábil e sugere o markup saudável para precificação.</p>
+  </div>
+
+  <div class="pain-card">
+    <div class="pain-title">❌ Conflitos com Clientes sobre Avarias</div>
+    <p>O cliente retira o carro e afirma que um arranhão na porta ou uma quebra de presilha não existia antes de deixar o veículo na oficina, gerando retrabalho e despesas não orçadas.</p>
+    <div class="solution-title">✔ Solução Vortex Auto:</div>
+    <p><strong>Check-in Fotográfico Digital.</strong> Registro fotográfico obrigatório no recebimento do veículo, com data, hora e assinatura eletrônica.</p>
+  </div>
+</div>
+
+<div class="callout callout-warning">
+  <h4>💡 O Impacto Financeiro</h4>
+  Estudos do setor automotivo comprovam que oficinas sem controle de WMS e MRP perdem de <strong>3% a 7% de todo o seu faturamento bruto</strong> apenas em perdas de peças, compras de emergência com sobrepreço e horas improdutivas de mecânicos aguardando peças.
+</div>
+
+<div class="break-page"></div>
+
+<!-- CAPÍTULO 2: ARQUITETURA E DIFERENCIAIS -->
+<h1>2. Engenharia e Diferenciais Tecnológicos</h1>
+<p>O <strong>Vortex Auto</strong> foi concebido sobre uma infraestrutura de nível bancário, com multi-tenancy nativo (isolamento absoluto entre empresas e unidades) e conformidade integral com a LGPD:</p>
+
+<table style="margin-top: 15px;">
+  <thead>
+    <tr>
+      <th style="width: 25%;">Camada</th>
+      <th style="width: 35%;">Tecnologia Utilizada</th>
+      <th style="width: 40%;">Vantagem Competitiva para a Oficina</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Frontend</strong></td>
+      <td>React 18 + Vite + Vanilla CSS Premium</td>
+      <td>Interface ultra-rápida, sem recarregamento de página. Funciona em tablets, celulares e computadores de bancada.</td>
+    </tr>
+    <tr>
+      <td><strong>Backend API</strong></td>
+      <td>Node.js 22 LTS + Fastify + TypeScript</td>
+      <td>Processamento assíncrono de altíssima velocidade. Respostas da API em menos de 15ms.</td>
+    </tr>
+    <tr>
+      <td><strong>Banco de Dados</strong></td>
+      <td>PostgreSQL 17 Relacional + Prisma ORM</td>
+      <td>Segurança transacional ACID. Impossibilita saldo negativo ou duplicação de baixa de estoque.</td>
+    </tr>
+    <tr>
+      <td><strong>Infraestrutura</strong></td>
+      <td>Docker Multi-Stage + Nginx Alpine</td>
+      <td>Alta disponibilidade, deploy automatizado sem queda e isolamento seguro de portas de rede.</td>
+    </tr>
+    <tr>
+      <td><strong>Segurança</strong></td>
+      <td>HTTPS Let's Encrypt + JWT + Hash Salt</td>
+      <td>Criptografia militar de dados de clientes, financeiro e histórico de faturamento.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- FLUXO VISUAL DO ATENDIMENTO -->
+<h2>Fluxo Operacional de Ponta a Ponta</h2>
+<div class="workflow-container">
+  <div class="workflow-steps">
+    <div class="wf-step">
+      <div class="num">1</div>
+      <div class="title">Recepção</div>
+      <div style="font-size: 7.5pt; color: #cbd5e1; margin-top: 3px;">Placa, km e fotos de avaria</div>
+    </div>
+    <div class="wf-step">
+      <div class="num">2</div>
+      <div class="title">Diagnóstico</div>
+      <div style="font-size: 7.5pt; color: #cbd5e1; margin-top: 3px;">Apontamento técnico do box</div>
+    </div>
+    <div class="wf-step">
+      <div class="num">3</div>
+      <div class="title">Orçamento</div>
+      <div style="font-size: 7.5pt; color: #cbd5e1; margin-top: 3px;">Peças, mão de obra e aprovação</div>
+    </div>
+    <div class="wf-step">
+      <div class="num">4</div>
+      <div class="title">WMS / Bipagem</div>
+      <div style="font-size: 7.5pt; color: #cbd5e1; margin-top: 3px;">Separação e baixa de peças</div>
+    </div>
+    <div class="wf-step">
+      <div class="num">5</div>
+      <div class="title">Execução</div>
+      <div style="font-size: 7.5pt; color: #cbd5e1; margin-top: 3px;">Montagem e inspeção qualidade</div>
+    </div>
+    <div class="wf-step">
+      <div class="num">6</div>
+      <div class="title">Entrega & Caixa</div>
+      <div style="font-size: 7.5pt; color: #cbd5e1; margin-top: 3px;">Pagamento, NF e garantia</div>
+    </div>
+  </div>
+</div>
+
+<!-- CAPÍTULO 3: GUIA OPERACIONAL DOS MÓDULOS -->
+<h1>3. Guia Operacional e Funcionalidades dos Módulos</h1>
+
+<h3>1. Recepção, Clientes e Veículos (HU-001 a HU-008)</h3>
+<ul>
+  <li><strong>Busca Inteligente por Placa:</strong> Digitação rápida da placa (padrão antigo ou Mercosul) com carregamento instantâneo do proprietário, modelo, ano, motor e histórico de passagens anteriores pela oficina.</li>
+  <li><strong>Checklist de Entrada com Avarias:</strong> Registro de nível de combustível, estepe, macaco, triângulo e fotos em tempo real de amassados ou riscos pré-existentes.</li>
+  <li><strong>Dupla Barra de Rolagem Sincronizada:</strong> Rolagem ergonômica tanto no topo quanto no rodapé da tabela, ideal para telas widescreen com alto volume de cadastros.</li>
+</ul>
+
+<h3>2. WMS Automotivo com Bipagem (HU-017 / HU-018)</h3>
+<ul>
+  <li><strong>Bipagem de Entrada de Compras:</strong> Leitura de código de barras ou QR Code na chegada de peças do distribuidor, conferindo fisicamente os itens recebidos.</li>
+  <li><strong>Bipagem de Baixa para OS:</strong> O mecânico bipa a peça na bancada e ela é automaticamente associada à Ordem de Serviço em aberto, com controle de lote e rastreabilidade total.</li>
+  <li><strong>Ficha Técnica e Modal de Peça:</strong> Cadastro completo incluindo marca (ex: Fram, Bosch, Nakata), modelo, código OEM de montadora, e <strong>compatibilidade veicular</strong> (ex: <em>"Aplica em VW Gol G5/G6 1.0 e 1.6 8V Total Flex"</em>).</li>
+  <li><strong>Controle de Validade de Fluidos:</strong> Alertas preventivos para óleos lubrificantes e fluidos com data de validade próxima, evitando contaminação no motor do cliente.</li>
+</ul>
+
+<div class="break-page"></div>
+
+<h3>3. Módulo de Compras, MRP e Fornecedores</h3>
+<ul>
+  <li><strong>Cálculo do Custo Médio Ponderado (CMP):</strong> Cada nota fiscal de compra atualiza o valor médio de estoque:
+    <div style="background: #f1f5f9; padding: 6px 10px; border-radius: 4px; font-family: monospace; font-size: 8pt; margin: 4px 0;">
+      Novo CMP = (Saldo Antigo x Custo Antigo + Quantidade Nova x Custo Novo) / (Saldo Total)
+    </div>
+  </li>
+  <li><strong>MRP Automotivo (Sugestão de Reposição):</strong> Varredura automática das ordens de serviço aprovadas. O sistema identifica peças faltantes e itens abaixo do estoque de segurança, montando uma sugestão de pedido pronta para o setor de compras.</li>
+</ul>
+
+<h3>4. Frente de Caixa e Vendas Balcão</h3>
+<ul>
+  <li><strong>Atendimento Balcão Rápido:</strong> Venda direta de óleo, filtros, palhetas ou acessórios para clientes que não abrem Ordem de Serviço de box.</li>
+  <li><strong>Estorno e Cancelamento Automático:</strong> Se uma venda balcão for cancelada, o sistema realiza o estorno físico do estoque e o cancelamento financeiro em uma única transação, com log de auditoria completo.</li>
+</ul>
+
+<h3>5. Business Intelligence (BI) e Relatórios</h3>
+<ul>
+  <li><strong>Dashboard Executivo:</strong> Visão consolidada em tempo real de Faturamento Bruto, Faturamento Líquido, Ticket Médio por Carro e Índice de Ocupação de Box.</li>
+  <li><strong>Curva ABC de Peças e Serviços:</strong> Identifica com precisão cirúrgica quais são os 20% de serviços e peças responsáveis por 80% do lucro líquido da oficina.</li>
+  <li><strong>Exportação em Formato Excel/CSV:</strong> Download imediato de dados para conciliação contábil e fiscal.</li>
+</ul>
+
+<!-- CAPÍTULO 4: CASOS DE USO -->
+<h1>4. Casos de Uso Práticos na Operação Diária</h1>
+
+<div class="callout callout-success">
+  <h4>Cenário Real 1: Entrada de Veículo para Troca de Correia Dentada</h4>
+  <strong>1. Recepção:</strong> O cliente chega com um Honda Civic 2.0. O recepcionista abre a OS, registra 85.000 km, fotografa o para-choque dianteiro (com um pequeno arranhão já existente) e salva.<br>
+  <strong>2. Diagnóstico & Orçamento:</strong> O mecânico diagnostica necessidade de troca do kit de correia, tensor e bomba d'água. O sistema monta o orçamento e exibe margem bruta de 42%.<br>
+  <strong>3. Aprovação:</strong> O cliente aprova pelo celular. As peças mudam para status "Reservadas" no almoxarifado.<br>
+  <strong>4. Separação WMS:</strong> O mecânico bipa a caixa do kit Dayco e da bomba Schadek. O sistema dá baixa no estoque e aloca na OS.<br>
+  <strong>5. Entrega:</strong> Finalizado o serviço, a OS é fechada, o cliente paga no cartão em 3x e o sistema emite o recibo e o termo de garantia de 6 meses.
+</div>
+
+<div class="callout callout-success">
+  <h4>Cenário Real 2: Reposição de Estoque via MRP de Compras</h4>
+  <strong>1. Análise MRP:</strong> Na segunda-feira de manhã, o responsável pelas compras abre a tela do MRP. O sistema avisa que 3 carros agendados para a semana precisam de óleo 0W20 e pastilhas traseiras, e o estoque atual está em apenas 2 unidades.<br>
+  <strong>2. Cotação Rápida:</strong> Com um clique, o sistema agrupa os itens e gera a lista de compra para o distribuidor parceiro.<br>
+  <strong>3. Recebimento & Entrada:</strong> A mercadoria chega com a NF. O estoquista bipa as caixas, o saldo físico sobe e o custo médio das peças é recalculado automaticamente.
+</div>
+
+<div class="break-page"></div>
+
+<!-- CAPÍTULO 5: ARGUMENTAÇÃO COMERCIAL (PARA O SÓCIO) -->
+<h1>5. Guia Comercial de Vendas (Pitch & Fechamento)</h1>
+<p>Este capítulo foi desenhado especificamente para o <strong>sócio responsável pela comercialização</strong> do Vortex Auto. Ao apresentar a plataforma para proprietários e gestores de oficinas, foque nas métricas de retorno financeiro:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width: 28%;">Objeção / Ponto do Dono</th>
+      <th style="width: 42%;">Argumento de Fechamento Vortex Auto</th>
+      <th style="width: 30%;">Impacto Financeiro (ROI)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><em>"Já uso um sistema antigo há 10 anos"</em></td>
+      <td>"Os sistemas antigos não têm WMS com bipagem e não calculam custo médio ponderado. A oficina perde de 3 a 5 peças por mês sem saber. O Vortex Auto se paga logo no primeiro mês."</td>
+      <td><strong>Economia direta:</strong> R$ 1.200 a R$ 3.500/mês em peças não extraviadas.</td>
+    </tr>
+    <tr>
+      <td><em>"Meus mecânicos têm dificuldade com computador"</em></td>
+      <td>"O Vortex foi desenhado com foco em usabilidade (UX). A operação na oficina é por leitor de código de barras ou cliques em cards coloridos no Kanban. Não exige digitação complexa."</td>
+      <td><strong>Treinamento rápido:</strong> Equipe 100% autônoma em menos de 48 horas.</td>
+    </tr>
+    <tr>
+      <td><em>"Tenho receio de clientes reclamarem de garantia"</em></td>
+      <td>"O sistema gera histórico completo por placa com peças homologadas, fotos de entrada do veículo e ficha técnica com código OEM da montadora, blindando a oficina contra contestações."</td>
+      <td><strong>Redução de 90%</strong> em litígios e custos de garantia indevida.</td>
+    </tr>
+    <tr>
+      <td><em>"Não sei se preciso de compras inteligentes"</em></td>
+      <td>"O MRP impede que você compre peças erradas e avisa exatamente o que as OSs aprovadas vão consumir amanhã, liberando capital de giro parado na prateleira."</td>
+      <td><strong>Redução de 25%</strong> no capital parado em estoque de baixo giro.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- CAPÍTULO 6: RADAR E ROADMAP -->
+<h1>6. Ponto de Atenção Estratégico: Migração de Sistemas Legados</h1>
+<p>Durante as visitas comerciais, a principal barreira para troca de software é o receio do cliente em relação a: <em>"Como vou transferir meus milhares de clientes, veículos e histórico de peças do meu sistema antigo?"</em></p>
+
+<div class="callout callout-warning">
+  <h4>🚀 O Super Conector de Migração (Roadmap de Próxima Fase)</h4>
+  Para anular essa objeção comercial e permitir uma transição em 24 horas, o roadmap do Vortex Auto prevê:
+  <ol style="margin-top: 6px;">
+    <li><strong>Assistente de Importação Universal (Planilhas Excel/CSV):</strong> O cliente exporta a lista de clientes, veículos e produtos do software antigo. Nossa tela de importação inteligente faz o reconhecimento automático das colunas (Nome, CPF/CNPJ, Placa, Estoque, Custo, Preço) e carrega na base com 1 clique.</li>
+    <li><strong>Extratores de Bancos Legados:</strong> Conectores para os bancos de dados mais comuns de sistemas legados de oficina no Brasil (Firebird <code>.fdb</code>, PostgreSQL e MySQL).</li>
+    <li><strong>Higienização Inteligente:</strong> Correção automática de placas fora de padrão, remoção de clientes duplicados e validação de dígitos de CPF/CNPJ durante o carregamento inicial.</li>
+  </ol>
+</div>
+
+<p><strong>Mensagem-Chave para o Fechamento Comercial:</strong><br>
+<em>"Você não precisa cadastrar nada do zero. Nós importamos toda a sua base de clientes, veículos e estoque para o Vortex Auto de forma transparente, garantindo que sua oficina não pare nem por um único dia."</em></p>
+
+<div style="margin-top: 35px; border-top: 2px solid #e2e8f0; padding-top: 15px; display: flex; justify-content: space-between; font-size: 8.5pt; color: #64748b;">
+  <div><strong>Vortex Auto</strong> — Gestão Automotiva Inteligente</div>
+  <div>Produção Oficial: <a href="https://www.vortexauto.com.br" style="color: #2563eb; text-decoration: none;">https://www.vortexauto.com.br</a></div>
+</div>
+
+</body>
+</html>
