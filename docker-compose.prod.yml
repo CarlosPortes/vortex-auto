@@ -62,10 +62,13 @@ services:
       - vortex-api
     networks:
       - vortex-net
+      - eco_eco-network
 
 networks:
   vortex-net:
     driver: bridge
+  eco_eco-network:
+    external: true
 
 volumes:
   vortex_pgdata:
