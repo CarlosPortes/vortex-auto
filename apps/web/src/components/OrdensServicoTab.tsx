@@ -13,11 +13,14 @@ import {
   Search,
   Layers,
   RotateCcw,
+  Trash2,
 } from 'lucide-react';
-import { OrdemServico, AtividadeOS, Produto } from '../types';
+import { OrdemServico, AtividadeOS, Produto, ItemOSAvulso } from '../types';
 import { apiRequest } from '../api';
+import { useDemoPlan } from '../context/DemoPlanContext';
 
 export const OrdensServicoTab: React.FC = () => {
+  const { planoAtivo } = useDemoPlan();
   const [ordens, setOrdens] = useState<OrdemServico[]>([]);
   const [loading, setLoading] = useState(false);
   const [filtroStatus, setFiltroStatus] = useState<string>('TODAS');
@@ -27,12 +30,27 @@ export const OrdensServicoTab: React.FC = () => {
   const [osSelecionada, setOsSelecionada] = useState<OrdemServico | null>(null);
   const [modalDetalhes, setModalDetalhes] = useState(false);
 
+  // Itens Avulsos da OS (Modo Rápido / Sem Estoque - Plano Básico e Flexível)
+  const [modalItemAvulso, setModalItemAvulso] = useState(false);
+  const [itensAvulsos, setItensAvulsos] = useState<Record<string, ItemOSAvulso[]>>(() => {
+    try {
+      const salvo = localStorage.getItem('vortex_os_itens_avulsos');
+      return salvo ? JSON.parse(salvo) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [novoTipoItem, setNovoTipoItem] = useState<'SERVICO' | 'PECA'>('PECA');
+  const [novaDescItem, setNovaDescItem] = useState('');
+  const [novaQtdItem, setNovaQtdItem] = useState(1);
+  const [novoValorUnitItem, setNovoValorUnitItem] = useState(80);
+
   // Ações em Atividade
   const [modalPausa, setModalPausa] = useState<AtividadeOS | null>(null);
   const [motivoPausa, setMotivoPausa] = useState('');
   const [tempoGastoPausa, setTempoGastoPausa] = useState(15);
 
-  // Consumo de Peça na OS
+  // Consumo de Peça na OS (Estoque WMS)
   const [modalConsumo, setModalConsumo] = useState(false);
   const [produtosDisponiveis, setProdutosDisponiveis] = useState<Produto[]>([]);
   const [prodConsumoId, setProdConsumoId] = useState('');
@@ -175,6 +193,47 @@ export const OrdensServicoTab: React.FC = () => {
       setFeedbackMsg({ tipo: 'erro', texto: res.mensagem || 'Erro ao devolver peça ao estoque.' });
     }
     setSalvandoDevolucao(false);
+  };
+
+  const handleSalvarItemAvulso = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!osSelecionada || !novaDescItem.trim()) return;
+
+    const novoItem: ItemOSAvulso = {
+      id: 'item-' + Date.now(),
+      tipo: novoTipoItem,
+      descricao: novaDescItem.trim(),
+      quantidade: Number(novaQtdItem),
+      valorUnitario: Number(novoValorUnitItem),
+      valorTotal: Number(novaQtdItem) * Number(novoValorUnitItem),
+    };
+
+    const itensAtuais = itensAvulsos[osSelecionada.id] || [];
+    const atualizados = {
+      ...itensAvulsos,
+      [osSelecionada.id]: [...itensAtuais, novoItem],
+    };
+
+    setItensAvulsos(atualizados);
+    localStorage.setItem('vortex_os_itens_avulsos', JSON.stringify(atualizados));
+    setFeedbackMsg({
+      tipo: 'sucesso',
+      texto: `${novoTipoItem === 'PECA' ? 'Peça' : 'Serviço'} '${novaDescItem}' incluído na OS com sucesso!`,
+    });
+    setNovaDescItem('');
+    setNovaQtdItem(1);
+    setNovoValorUnitItem(80);
+    setModalItemAvulso(false);
+  };
+
+  const handleRemoverItemAvulso = (osId: string, itemId: string) => {
+    const filtrados = (itensAvulsos[osId] || []).filter((it) => it.id !== itemId);
+    const atualizados = {
+      ...itensAvulsos,
+      [osId]: filtrados,
+    };
+    setItensAvulsos(atualizados);
+    localStorage.setItem('vortex_os_itens_avulsos', JSON.stringify(atualizados));
   };
 
   const handleConcluirOS = async (osId: string) => {
@@ -617,42 +676,136 @@ export const OrdensServicoTab: React.FC = () => {
                 </div>
               </div>
 
-              {/* Seção 2: Consumo de Peças na OS */}
+              {/* Seção 2: Serviços e Peças da OS (Modo Rápido / Básico e Integrado WMS) */}
               <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Package size={16} color="var(--primary)" /> Consumo e Aplicação de Peças (HU-016)
-                  </h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Package size={16} color="var(--primary)" /> Peças & Serviços Aplicados na OS
+                    </h4>
+                    {planoAtivo === 'BASICO' && (
+                      <span className="badge badge-green" style={{ fontSize: '0.7rem', marginTop: '4px' }}>
+                        🟢 Modo Básico: Lançamento livre sem necessidade de estoque prévio
+                      </span>
+                    )}
+                  </div>
+
                   {osSelecionada.status !== 'CONCLUIDA' && (
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {/* Botão de Adicionar Peça/Serviço Rápido (Livre) */}
+                      <button
+                        onClick={() => setModalItemAvulso(true)}
+                        className="btn btn-primary"
+                        style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Plus size={14} /> + Peça / Serviço Avulso
+                      </button>
+
+                      {/* Botão de Estoque WMS */}
                       <button
                         onClick={() => {
+                          if (planoAtivo === 'BASICO') {
+                            setFeedbackMsg({
+                              tipo: 'erro',
+                              texto: 'O controle de saldo e almoxarifado WMS faz parte dos Planos Intermediário e Avançado. No Plano Básico utilize "+ Peça / Serviço Avulso" para lançar direto sem burocracia.',
+                            });
+                            return;
+                          }
                           carregarProdutosParaConsumo();
                           setModalConsumo(true);
                         }}
                         className="btn btn-secondary"
-                        style={{ padding: '6px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        <Plus size={14} /> Aplicar Peça
-                      </button>
-                      <button
-                        onClick={() => {
-                          carregarProdutosParaConsumo();
-                          setModalDevolucao(true);
+                        style={{
+                          padding: '6px 10px',
+                          fontSize: '0.75rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          opacity: planoAtivo === 'BASICO' ? 0.6 : 1,
                         }}
-                        className="btn btn-secondary"
-                        style={{ padding: '6px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', borderColor: 'rgba(239, 68, 68, 0.4)', color: '#f87171' }}
+                        title={planoAtivo === 'BASICO' ? 'Disponível no Plano Intermediário' : 'Baixar do Estoque'}
                       >
-                        <RotateCcw size={14} /> Devolver Sobra (HU-016)
+                        <Package size={14} /> {planoAtivo === 'BASICO' ? 'Estoque WMS (Intermediário)' : 'Baixar Peça do Estoque'}
                       </button>
+
+                      {planoAtivo !== 'BASICO' && (
+                        <button
+                          onClick={() => {
+                            carregarProdutosParaConsumo();
+                            setModalDevolucao(true);
+                          }}
+                          className="btn btn-secondary"
+                          style={{ padding: '6px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', borderColor: 'rgba(239, 68, 68, 0.4)', color: '#f87171' }}
+                        >
+                          <RotateCcw size={14} /> Devolver Sobra
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
 
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  A cada peça aplicada no veículo, o estoque físico é baixado imediatamente com rastreabilidade da OS e vínculo à garantia do serviço.
-                </div>
+                {/* Lista de Itens Avulsos Lançados na OS */}
+                {((itensAvulsos[osSelecionada.id] || []).length > 0) ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+                    {(itensAvulsos[osSelecionada.id] || []).map((it) => (
+                      <div
+                        key={it.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 14px',
+                          borderRadius: 'var(--radius-sm)',
+                          background: 'rgba(255,255,255,0.02)',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span className={`badge ${it.tipo === 'PECA' ? 'badge-amber' : 'badge-blue'}`} style={{ fontSize: '0.68rem' }}>
+                            {it.tipo === 'PECA' ? 'Peça' : 'Serviço'}
+                          </span>
+                          <div>
+                            <div style={{ fontSize: '0.86rem', fontWeight: 600 }}>{it.descricao}</div>
+                            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                              Qtd: {it.quantidade} × {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(it.valorUnitario)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <strong style={{ fontSize: '0.9rem', color: 'var(--primary)' }}>
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(it.valorTotal)}
+                          </strong>
+                          {osSelecionada.status !== 'CONCLUIDA' && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoverItemAvulso(osSelecionada.id, it.id)}
+                              style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', padding: '4px' }}
+                              title="Remover item"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', marginTop: '4px' }}>
+                      <span>Subtotal Itens Livres:</span>
+                      <span style={{ color: '#34d399' }}>
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                          (itensAvulsos[osSelecionada.id] || []).reduce((acc, i) => acc + i.valorTotal, 0)
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '8px 0' }}>
+                    Nenhum item avulso adicionado ainda. Clique em "+ Peça / Serviço Avulso" para incluir itens sem precisar de catálogo de estoque.
+                  </div>
+                )}
               </div>
+
             </div>
 
             {/* Modal Footer */}
@@ -883,6 +1036,190 @@ export const OrdensServicoTab: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Sub-Modal Inclusão Rápida de Peça / Serviço Avulso (Modo Básico sem Estoque) */}
+      {modalItemAvulso && osSelecionada && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+            padding: '16px',
+          }}
+        >
+          <div className="glass-panel" style={{ maxWidth: '480px', width: '100%', padding: '22px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div>
+                <h4 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Plus size={18} color="var(--primary)" /> Adicionar Item na OS (Modo Rápido)
+                </h4>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                  {planoAtivo === 'BASICO'
+                    ? 'Substituto de Planilha: Digite a peça ou serviço livremente sem controle de estoque.'
+                    : 'Lançamento avulso para itens sem código de estoque cadastrado.'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalItemAvulso(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSalvarItemAvulso} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                  Tipo de Item *
+                </label>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <label
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: `1px solid ${novoTipoItem === 'PECA' ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                      background: novoTipoItem === 'PECA' ? 'rgba(14, 165, 233, 0.15)' : 'rgba(255,255,255,0.02)',
+                      cursor: 'pointer',
+                      fontSize: '0.82rem',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="tipoItem"
+                      checked={novoTipoItem === 'PECA'}
+                      onChange={() => setNovoTipoItem('PECA')}
+                    />
+                    📦 Peça / Material
+                  </label>
+
+                  <label
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: `1px solid ${novoTipoItem === 'SERVICO' ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                      background: novoTipoItem === 'SERVICO' ? 'rgba(14, 165, 233, 0.15)' : 'rgba(255,255,255,0.02)',
+                      cursor: 'pointer',
+                      fontSize: '0.82rem',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="tipoItem"
+                      checked={novoTipoItem === 'SERVICO'}
+                      onChange={() => setNovoTipoItem('SERVICO')}
+                    />
+                    🔧 Mão de Obra / Serviço
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Descrição da Peça ou Serviço *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder={novoTipoItem === 'PECA' ? 'Ex: Filtro de óleo Tecfil PSL-55' : 'Ex: Troca de pastilhas dianteiras'}
+                  value={novaDescItem}
+                  onChange={(e) => setNovaDescItem(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'rgba(255,255,255,0.03)',
+                    color: 'inherit',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Quantidade *</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    required
+                    value={novaQtdItem}
+                    onChange={(e) => setNovaQtdItem(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-subtle)',
+                      background: 'rgba(255,255,255,0.03)',
+                      color: 'inherit',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Valor Unitário (R$) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={novoValorUnitItem}
+                    onChange={(e) => setNovoValorUnitItem(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-subtle)',
+                      background: 'rgba(255,255,255,0.03)',
+                      color: 'inherit',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Total deste item:</span>
+                <strong style={{ fontSize: '1.05rem', color: '#34d399' }}>
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    Number(novaQtdItem) * Number(novoValorUnitItem)
+                  )}
+                </strong>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+                <button type="button" onClick={() => setModalItemAvulso(false)} className="btn btn-secondary">
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Incluir na Ordem de Serviço
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

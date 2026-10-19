@@ -10,9 +10,11 @@ import {
   TrendingUp,
   Receipt,
   Car,
+  Calculator,
 } from 'lucide-react';
 import { Cobranca } from '../types';
 import { apiRequest } from '../api';
+import { ModalCalculadoraMaquininha } from './ModalCalculadoraMaquininha';
 
 export const FinanceiroTab: React.FC = () => {
   const [cobrancas, setCobrancas] = useState<Cobranca[]>([]);
@@ -24,6 +26,10 @@ export const FinanceiroTab: React.FC = () => {
   const [cobrancaSelecionada, setCobrancaSelecionada] = useState<Cobranca | null>(null);
   const [modalDetalhes, setModalDetalhes] = useState(false);
   const [carregandoDetalhes, setCarregandoDetalhes] = useState(false);
+
+  // Modal Simulador de Maquininha e PIX
+  const [modalCalculadora, setModalCalculadora] = useState(false);
+  const [valorBaseCalculadora, setValorBaseCalculadora] = useState(1200);
 
   // Form Recebimento
   const [valorReceber, setValorReceber] = useState<number>(0);
@@ -224,7 +230,7 @@ export const FinanceiroTab: React.FC = () => {
           />
         </div>
 
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
           {['TODAS', 'PENDENTE', 'PARCIALMENTE_LIQUIDADA', 'LIQUIDADA'].map((st) => (
             <button
               key={st}
@@ -235,6 +241,26 @@ export const FinanceiroTab: React.FC = () => {
               {st === 'TODAS' ? 'Todas' : st.replace('_', ' ')}
             </button>
           ))}
+
+          <button
+            type="button"
+            onClick={() => {
+              setValorBaseCalculadora(1500);
+              setModalCalculadora(true);
+            }}
+            className="btn btn-primary"
+            style={{
+              padding: '8px 14px',
+              fontSize: '0.78rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#10b981',
+              borderColor: '#10b981',
+            }}
+          >
+            <Calculator size={15} /> Simular Maquininha & PIX
+          </button>
         </div>
       </div>
 
@@ -458,9 +484,22 @@ export const FinanceiroTab: React.FC = () => {
                     borderRadius: 'var(--radius-sm)',
                     padding: '16px',
                   }}>
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <CreditCard size={16} color="var(--primary)" /> Baixar Pagamento / Recebimento (HU-021)
-                    </h4>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <CreditCard size={16} color="var(--primary)" /> Baixar Pagamento / Recebimento (HU-021)
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setValorBaseCalculadora(cobrancaSelecionada.saldoDevedor);
+                          setModalCalculadora(true);
+                        }}
+                        className="btn btn-secondary"
+                        style={{ padding: '5px 10px', fontSize: '0.74rem', display: 'flex', alignItems: 'center', gap: '4px', borderColor: '#10b981', color: '#34d399' }}
+                      >
+                        <Calculator size={14} /> Repassar Taxa Maquininha
+                      </button>
+                    </div>
 
                     <form onSubmit={handleRegistrarRecebimento} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', alignItems: 'flex-end' }}>
                       <div>
@@ -569,6 +608,26 @@ export const FinanceiroTab: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal Simulador de Maquininha e PIX (Repassar Taxas) */}
+      {modalCalculadora && (
+        <ModalCalculadoraMaquininha
+          valorBase={valorBaseCalculadora}
+          onClose={() => setModalCalculadora(false)}
+          onAplicarValorFinal={(valorCalc, parcelas, _taxa, detalhe) => {
+            setValorReceber(valorCalc);
+            if (parcelas > 1) {
+              setMeioPagamento('CARTAO_CREDITO');
+            }
+            setDetalhesRecebimento(detalhe);
+            setFeedbackMsg({
+              tipo: 'sucesso',
+              texto: `Valor ajustado para ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorCalc)} (${detalhe}).`,
+            });
+          }}
+        />
+      )}
     </div>
   );
 };
+

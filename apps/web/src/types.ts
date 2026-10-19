@@ -565,6 +565,13 @@ export interface VendaBalcao {
     uf: string;
   };
 }
+export type PlanoSistema = 'BASICO' | 'INTERMEDIARIO' | 'AVANCADO';
 
-
-
+export interface ItemOSAvulso {
+  id: string;
+  tipo: 'SERVICO' | 'PECA';
+  descricao: string;
+  quantidade: number;
+  valorUnitario: number;
+  valorTotal: number;
+}

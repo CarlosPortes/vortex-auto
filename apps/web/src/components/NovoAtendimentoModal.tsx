@@ -9,9 +9,12 @@ import {
   CheckSquare,
   AlertCircle,
   Check,
+  Camera,
+  UploadCloud,
 } from 'lucide-react';
 import { apiRequest } from '../api';
 import { Cliente, Veiculo } from '../types';
+import { useDemoPlan } from '../context/DemoPlanContext';
 
 interface NovoAtendimentoModalProps {
   onClose: () => void;
@@ -19,6 +22,7 @@ interface NovoAtendimentoModalProps {
 }
 
 export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onClose, onSuccess }) => {
+  const { comFotos } = useDemoPlan();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [veiculos, setVeiculos] = useState<Veiculo[]>([]);
   const [loadingListas, setLoadingListas] = useState(true);
@@ -32,6 +36,12 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
   const [nivelCombustivel, setNivelCombustivel] = useState('MEIO');
   const [pertencesDeixados, setPertencesDeixados] = useState('');
   const [avariasPrevias, setAvariasPrevias] = useState('');
+
+  // Fotos da Vistoria (Disponível quando o Módulo/Add-on de Fotos estiver ativo)
+  const [fotosVistoria, setFotosVistoria] = useState<{ id: string; label: string; url: string }[]>([
+    { id: '1', label: 'Dianteira / Placa', url: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=300&q=80' },
+    { id: '2', label: 'Odômetro / Painel', url: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=300&q=80' },
+  ]);
 
   // Checklist
   const [temEstepe, setTemEstepe] = useState(true);
@@ -324,6 +334,116 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
                 />
               </div>
             </div>
+
+            {/* Seção Condicional de Fotos da Vistoria */}
+            {comFotos ? (
+              <div
+                style={{
+                  background: 'rgba(56, 189, 248, 0.05)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '14px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Camera size={16} /> Vistoria Fotográfica Digital (Add-on de Fotos Ativo)
+                  </div>
+                  <span className="badge badge-blue" style={{ fontSize: '0.68rem' }}>
+                    Resguardo Jurídico
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+                  {fotosVistoria.map((f) => (
+                    <div
+                      key={f.id}
+                      style={{
+                        position: 'relative',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        border: '1px solid var(--border-subtle)',
+                        background: '#000',
+                        height: '90px',
+                      }}
+                    >
+                      <img src={f.url} alt={f.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          background: 'rgba(0,0,0,0.7)',
+                          color: '#fff',
+                          fontSize: '0.65rem',
+                          padding: '2px 4px',
+                          textAlign: 'center',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {f.label}
+                      </div>
+                    </div>
+                  ))}
+
+                  <div
+                    style={{
+                      height: '90px',
+                      border: '1px dashed rgba(56, 189, 248, 0.4)',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                      background: 'rgba(255,255,255,0.01)',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.7rem',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => {
+                      const novaFoto = {
+                        id: String(Date.now()),
+                        label: 'Lataria Lateral',
+                        url: 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=300&q=80',
+                      };
+                      setFotosVistoria([...fotosVistoria, novaFoto]);
+                    }}
+                  >
+                    <UploadCloud size={18} color="#38bdf8" />
+                    <span>+ Anexar Foto</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                style={{
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px dashed var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '0.78rem',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Camera size={15} color="var(--text-muted)" />
+                  <span>
+                    Módulo de Fotos <strong>desativado</strong> para este pacote (otimiza custos de nuvem).
+                  </span>
+                </div>
+                <span className="badge badge-gray" style={{ fontSize: '0.68rem' }}>
+                  Opcional / Add-on
+                </span>
+              </div>
+            )}
+
 
             {/* Botões */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '14px' }}>

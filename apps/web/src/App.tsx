@@ -17,6 +17,7 @@ import {
   Store,
 } from 'lucide-react';
 import { Header } from './components/Header';
+import { DemoPlanBar } from './components/DemoPlanBar';
 import { JornadaVisualizer } from './components/JornadaVisualizer';
 import { ColaboradoresTab } from './components/ColaboradoresTab';
 import { AuditoriaTab } from './components/AuditoriaTab';
@@ -31,16 +32,37 @@ import { RelatoriosTab } from './components/RelatoriosTab';
 import { LoginModal } from './components/LoginModal';
 import { apiRequest, clearStoredToken } from './api';
 import { UserTenantContext, Colaborador, RegistroAuditoria } from './types';
+import { DemoPlanProvider, useDemoPlan } from './context/DemoPlanContext';
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [context, setContext] = useState<UserTenantContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [abaAtiva, setAbaAtiva] = useState<
-    'ATENDIMENTOS' | 'ORDENS_SERVICO' | 'ESTOQUE' | 'COMPRAS_MRP' | 'VENDAS_BALCAO' | 'FINANCEIRO' | 'RELATORIOS' | 'CLIENTES_VEICULOS' | 'JORNADA' | 'COLABORADORES' | 'AUDITORIA' | 'SISTEMA'
+    | 'ATENDIMENTOS'
+    | 'ORDENS_SERVICO'
+    | 'ESTOQUE'
+    | 'COMPRAS_MRP'
+    | 'VENDAS_BALCAO'
+    | 'FINANCEIRO'
+    | 'RELATORIOS'
+    | 'CLIENTES_VEICULOS'
+    | 'JORNADA'
+    | 'COLABORADORES'
+    | 'AUDITORIA'
+    | 'SISTEMA'
   >('ATENDIMENTOS');
 
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [auditorias, setAuditorias] = useState<RegistroAuditoria[]>([]);
+
+  const { planoAtivo, isAbaPermitida, infoPlano } = useDemoPlan();
+
+  // Quando o plano mudar, se a aba ativa não for suportada no plano atual, volta para ATENDIMENTOS
+  useEffect(() => {
+    if (!isAbaPermitida(abaAtiva)) {
+      setAbaAtiva('ATENDIMENTOS');
+    }
+  }, [planoAtivo]);
 
   const carregarSessao = async () => {
     setLoading(true);
@@ -101,25 +123,32 @@ export const App: React.FC = () => {
       <Header context={context} onLogout={handleLogout} />
 
       <main style={{ flex: 1, padding: '0 24px 32px 24px', maxWidth: '1440px', width: '100%', margin: '0 auto' }}>
-        {/* KPI Cards — Resumo da Oficina */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '16px',
-          marginBottom: '24px',
-        }}>
-          {/* Card 1 */}
+        {/* Barra de Seleção dos 3 Perfis de Pacote (Demonstração Comercial) */}
+        <DemoPlanBar />
+
+        {/* KPI Cards — Resumo Adaptativo da Oficina de acordo com o Plano Selecionado */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '16px',
+            marginBottom: '24px',
+          }}
+        >
+          {/* Card 1: Tenant & Isolamento */}
           <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '12px',
-              background: 'rgba(14, 165, 233, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--primary)',
-            }}>
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
+                background: 'rgba(14, 165, 233, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--primary)',
+              }}
+            >
               <Building size={24} />
             </div>
             <div>
@@ -127,180 +156,218 @@ export const App: React.FC = () => {
               <div style={{ fontSize: '1.15rem', fontWeight: 700, marginTop: '2px' }}>
                 {context.razaoSocialEmpresa}
               </div>
-              <span className="badge badge-green" style={{ marginTop: '6px' }}>
-                <CheckCircle2 size={12} /> Isolado & Seguro
+              <span className={`badge ${infoPlano.badgeCor}`} style={{ marginTop: '6px' }}>
+                <CheckCircle2 size={12} /> {infoPlano.nome}
               </span>
             </div>
           </div>
 
-          {/* Card 2 */}
+          {/* Card 2: Equipe ou Foco do Plano */}
           <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '12px',
-              background: 'rgba(16, 185, 129, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#34d399',
-            }}>
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
+                background: 'rgba(16, 185, 129, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#34d399',
+              }}
+            >
               <Users size={24} />
             </div>
             <div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Equipe da Unidade (HU-004)</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                {planoAtivo === 'BASICO' ? 'Objetivo do Pacote' : 'Equipe da Unidade (HU-004)'}
+              </div>
               <div style={{ fontSize: '1.15rem', fontWeight: 700, marginTop: '2px' }}>
-                {colaboradores.length} Colaborador{colaboradores.length !== 1 ? 'es' : ''}
+                {planoAtivo === 'BASICO' ? 'Adeus Planilhas' : `${colaboradores.length} Colaborador${colaboradores.length !== 1 ? 'es' : ''}`}
               </div>
               <span className="badge badge-blue" style={{ marginTop: '6px' }}>
-                RBAC Granular Ativo
+                {planoAtivo === 'BASICO' ? 'Foco em Agilidade' : 'RBAC Granular Ativo'}
               </span>
             </div>
           </div>
 
-          {/* Card 3 */}
+          {/* Card 3: Segurança / Simplicidade */}
           <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '12px',
-              background: 'rgba(245, 158, 11, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--accent-amber)',
-            }}>
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
+                background: 'rgba(245, 158, 11, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--accent-amber)',
+              }}
+            >
               <ShieldAlert size={24} />
             </div>
             <div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Trilha de Auditoria (HU-029)</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                {planoAtivo === 'BASICO' ? 'Ordem de Serviço' : 'Trilha de Auditoria (HU-029)'}
+              </div>
               <div style={{ fontSize: '1.15rem', fontWeight: 700, marginTop: '2px' }}>
-                {auditorias.length} Eventos Gravados
+                {planoAtivo === 'BASICO' ? 'Sem Exigir Estoque' : `${auditorias.length} Eventos Gravados`}
               </div>
               <span className="badge badge-amber" style={{ marginTop: '6px' }}>
-                Rastreabilidade 100%
+                {planoAtivo === 'BASICO' ? 'Lançamento Imediato' : 'Rastreabilidade 100%'}
               </span>
             </div>
           </div>
 
-          {/* Card 4 */}
+          {/* Card 4: Fechamento / Banco */}
           <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '12px',
-              background: 'rgba(139, 92, 246, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--accent-purple)',
-            }}>
-              <Database size={24} />
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
+                background: 'rgba(139, 92, 246, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--accent-purple)',
+              }}
+            >
+              {planoAtivo === 'BASICO' ? <DollarSign size={24} /> : <Database size={24} />}
             </div>
             <div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Banco de Dados (DOC-015)</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                {planoAtivo === 'BASICO' ? 'Fechamento & PIX' : 'Banco de Dados (DOC-015)'}
+              </div>
               <div style={{ fontSize: '1.15rem', fontWeight: 700, marginTop: '2px' }}>
-                PostgreSQL 18
+                {planoAtivo === 'BASICO' ? 'Repasse Maquininha' : 'PostgreSQL 18'}
               </div>
               <span className="badge badge-purple" style={{ marginTop: '6px' }}>
-                Transacional ACID
+                {planoAtivo === 'BASICO' ? 'Margem 100% Preservada' : 'Transacional ACID'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div style={{
-          display: 'flex',
-          gap: '8px',
-          borderBottom: '1px solid var(--border-subtle)',
-          paddingBottom: '12px',
-          marginBottom: '20px',
-          overflowX: 'auto',
-        }}>
-          <button
-            onClick={() => setAbaAtiva('ATENDIMENTOS')}
-            className={`btn ${abaAtiva === 'ATENDIMENTOS' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <ClipboardList size={16} /> Atendimentos & Recepção (HU-008/009)
-          </button>
+        {/* Tab Navigation com Filtro Inteligente de Planos */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '8px',
+            borderBottom: '1px solid var(--border-subtle)',
+            paddingBottom: '12px',
+            marginBottom: '20px',
+            overflowX: 'auto',
+          }}
+        >
+          {isAbaPermitida('ATENDIMENTOS') && (
+            <button
+              onClick={() => setAbaAtiva('ATENDIMENTOS')}
+              className={`btn ${abaAtiva === 'ATENDIMENTOS' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              <ClipboardList size={16} /> Atendimentos & Recepção
+            </button>
+          )}
 
-          <button
-            onClick={() => setAbaAtiva('ORDENS_SERVICO')}
-            className={`btn ${abaAtiva === 'ORDENS_SERVICO' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <Wrench size={16} /> Ordens de Serviço (HU-014/015)
-          </button>
+          {isAbaPermitida('ORDENS_SERVICO') && (
+            <button
+              onClick={() => setAbaAtiva('ORDENS_SERVICO')}
+              className={`btn ${abaAtiva === 'ORDENS_SERVICO' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              <Wrench size={16} /> Ordens de Serviço
+            </button>
+          )}
 
-          <button
-            onClick={() => setAbaAtiva('ESTOQUE')}
-            className={`btn ${abaAtiva === 'ESTOQUE' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <Package size={16} /> Estoque & Peças (HU-017/018)
-          </button>
+          {isAbaPermitida('ESTOQUE') && (
+            <button
+              onClick={() => setAbaAtiva('ESTOQUE')}
+              className={`btn ${abaAtiva === 'ESTOQUE' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              <Package size={16} /> Estoque & Peças
+            </button>
+          )}
 
-          <button
-            onClick={() => setAbaAtiva('COMPRAS_MRP')}
-            className={`btn ${abaAtiva === 'COMPRAS_MRP' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <ShoppingCart size={16} /> Compras & MRP (NF-e)
-          </button>
+          {isAbaPermitida('COMPRAS_MRP') && (
+            <button
+              onClick={() => setAbaAtiva('COMPRAS_MRP')}
+              className={`btn ${abaAtiva === 'COMPRAS_MRP' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              <ShoppingCart size={16} /> Compras & MRP (NF-e)
+            </button>
+          )}
 
-          <button
-            onClick={() => setAbaAtiva('VENDAS_BALCAO')}
-            className={`btn ${abaAtiva === 'VENDAS_BALCAO' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <Store size={16} /> Vendas Balcão (PDV)
-          </button>
+          {isAbaPermitida('VENDAS_BALCAO') && (
+            <button
+              onClick={() => setAbaAtiva('VENDAS_BALCAO')}
+              className={`btn ${abaAtiva === 'VENDAS_BALCAO' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              <Store size={16} /> Vendas Balcão (PDV)
+            </button>
+          )}
 
-          <button
-            onClick={() => setAbaAtiva('FINANCEIRO')}
-            className={`btn ${abaAtiva === 'FINANCEIRO' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <DollarSign size={16} /> Financeiro & Cobranças (HU-020/021)
-          </button>
+          {isAbaPermitida('FINANCEIRO') && (
+            <button
+              onClick={() => setAbaAtiva('FINANCEIRO')}
+              className={`btn ${abaAtiva === 'FINANCEIRO' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              <DollarSign size={16} /> Financeiro & Cobranças
+            </button>
+          )}
 
-          <button
-            onClick={() => setAbaAtiva('RELATORIOS')}
-            className={`btn ${abaAtiva === 'RELATORIOS' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <TrendingUp size={16} /> Relatórios & BI (HU-026/027)
-          </button>
+          {isAbaPermitida('RELATORIOS') && (
+            <button
+              onClick={() => setAbaAtiva('RELATORIOS')}
+              className={`btn ${abaAtiva === 'RELATORIOS' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              <TrendingUp size={16} /> Relatórios & BI
+            </button>
+          )}
 
-          <button
-            onClick={() => setAbaAtiva('CLIENTES_VEICULOS')}
-            className={`btn ${abaAtiva === 'CLIENTES_VEICULOS' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <Car size={16} /> Clientes & Veículos (HU-006/007)
-          </button>
+          {isAbaPermitida('CLIENTES_VEICULOS') && (
+            <button
+              onClick={() => setAbaAtiva('CLIENTES_VEICULOS')}
+              className={`btn ${abaAtiva === 'CLIENTES_VEICULOS' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              <Car size={16} /> Clientes & Veículos
+            </button>
+          )}
 
-          <button
-            onClick={() => setAbaAtiva('JORNADA')}
-            className={`btn ${abaAtiva === 'JORNADA' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <Layers size={16} /> Visão da Jornada Geral
-          </button>
+          {isAbaPermitida('JORNADA') && (
+            <button
+              onClick={() => setAbaAtiva('JORNADA')}
+              className={`btn ${abaAtiva === 'JORNADA' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              <Layers size={16} /> Visão da Jornada Geral
+            </button>
+          )}
 
-          <button
-            onClick={() => setAbaAtiva('COLABORADORES')}
-            className={`btn ${abaAtiva === 'COLABORADORES' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <Users size={16} /> Equipe & Perfis (HU-004)
-          </button>
+          {isAbaPermitida('COLABORADORES') && (
+            <button
+              onClick={() => setAbaAtiva('COLABORADORES')}
+              className={`btn ${abaAtiva === 'COLABORADORES' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              <Users size={16} /> Equipe & Perfis
+            </button>
+          )}
 
-          <button
-            onClick={() => setAbaAtiva('AUDITORIA')}
-            className={`btn ${abaAtiva === 'AUDITORIA' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <ShieldAlert size={16} /> Auditoria Rastreável (HU-029)
-          </button>
+          {isAbaPermitida('AUDITORIA') && (
+            <button
+              onClick={() => setAbaAtiva('AUDITORIA')}
+              className={`btn ${abaAtiva === 'AUDITORIA' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              <ShieldAlert size={16} /> Auditoria Rastreável
+            </button>
+          )}
 
-          <button
-            onClick={() => setAbaAtiva('SISTEMA')}
-            className={`btn ${abaAtiva === 'SISTEMA' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <Server size={16} /> Arquitetura & Parâmetros
-          </button>
+          {isAbaPermitida('SISTEMA') && (
+            <button
+              onClick={() => setAbaAtiva('SISTEMA')}
+              className={`btn ${abaAtiva === 'SISTEMA' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              <Server size={16} /> Arquitetura & Parâmetros
+            </button>
+          )}
         </div>
 
         {/* Tab Content */}
@@ -308,29 +375,29 @@ export const App: React.FC = () => {
 
         {abaAtiva === 'ORDENS_SERVICO' && <OrdensServicoTab />}
 
-        {abaAtiva === 'ESTOQUE' && <EstoqueTab />}
+        {abaAtiva === 'ESTOQUE' && isAbaPermitida('ESTOQUE') && <EstoqueTab />}
 
-        {abaAtiva === 'COMPRAS_MRP' && <ComprasMRPTab />}
+        {abaAtiva === 'COMPRAS_MRP' && isAbaPermitida('COMPRAS_MRP') && <ComprasMRPTab />}
 
-        {abaAtiva === 'VENDAS_BALCAO' && <VendasBalcaoTab />}
+        {abaAtiva === 'VENDAS_BALCAO' && isAbaPermitida('VENDAS_BALCAO') && <VendasBalcaoTab />}
 
         {abaAtiva === 'FINANCEIRO' && <FinanceiroTab />}
 
-        {abaAtiva === 'RELATORIOS' && <RelatoriosTab />}
+        {abaAtiva === 'RELATORIOS' && isAbaPermitida('RELATORIOS') && <RelatoriosTab />}
 
-        {abaAtiva === 'CLIENTES_VEICULOS' && <ClientesVeiculosTab />}
+        {abaAtiva === 'CLIENTES_VEICULOS' && isAbaPermitida('CLIENTES_VEICULOS') && <ClientesVeiculosTab />}
 
-        {abaAtiva === 'JORNADA' && <JornadaVisualizer />}
+        {abaAtiva === 'JORNADA' && isAbaPermitida('JORNADA') && <JornadaVisualizer />}
 
-        {abaAtiva === 'COLABORADORES' && (
+        {abaAtiva === 'COLABORADORES' && isAbaPermitida('COLABORADORES') && (
           <ColaboradoresTab colaboradores={colaboradores} onRefresh={carregarDadosAdmin} />
         )}
 
-        {abaAtiva === 'AUDITORIA' && (
+        {abaAtiva === 'AUDITORIA' && isAbaPermitida('AUDITORIA') && (
           <AuditoriaTab auditorias={auditorias} onRefresh={carregarDadosAdmin} />
         )}
 
-        {abaAtiva === 'SISTEMA' && (
+        {abaAtiva === 'SISTEMA' && isAbaPermitida('SISTEMA') && (
           <div className="glass-panel" style={{ padding: '24px' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px' }}>
               Fundação Técnica e Módulos Operacionais (ENT-001 & ENT-002)
@@ -340,12 +407,14 @@ export const App: React.FC = () => {
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-              <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '16px',
-              }}>
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '16px',
+                }}
+              >
                 <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '8px' }}>
                   Isolamento de Dados Multi-Tenant
                 </div>
@@ -354,12 +423,14 @@ export const App: React.FC = () => {
                 </p>
               </div>
 
-              <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '16px',
-              }}>
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '16px',
+                }}
+              >
                 <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '8px' }}>
                   Eixo Central: Atendimento & Medições
                 </div>
@@ -368,17 +439,19 @@ export const App: React.FC = () => {
                 </p>
               </div>
 
-              <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '16px',
-              }}>
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '16px',
+                }}
+              >
                 <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '8px' }}>
-                  Próxima Entrega: ENT-003 (Comercial)
+                  Estratégia de Monetização SaaS
                 </div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Histórias HU-010 a HU-013: Diagnóstico Técnico e Orçamento Versionado com Aprovação/Recusa individual por item.
+                  Modularidade em 3 Pacotes (Básico, Intermediário e Avançado) com opcional de fotos para otimização de custos de infraestrutura e retenção de margem comercial.
                 </p>
               </div>
             </div>
@@ -386,5 +459,13 @@ export const App: React.FC = () => {
         )}
       </main>
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <DemoPlanProvider>
+      <AppContent />
+    </DemoPlanProvider>
   );
 };
