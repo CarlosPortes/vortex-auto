@@ -270,6 +270,15 @@ const AppContent: React.FC = () => {
             </button>
           )}
 
+          {isAbaPermitida('CLIENTES_VEICULOS') && (
+            <button
+              onClick={() => setAbaAtiva('CLIENTES_VEICULOS')}
+              className={`btn ${abaAtiva === 'CLIENTES_VEICULOS' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              <Car size={16} /> Clientes & Veículos
+            </button>
+          )}
+
           {isAbaPermitida('ORDENS_SERVICO') && (
             <button
               onClick={() => setAbaAtiva('ORDENS_SERVICO')}
@@ -324,15 +333,6 @@ const AppContent: React.FC = () => {
             </button>
           )}
 
-          {isAbaPermitida('CLIENTES_VEICULOS') && (
-            <button
-              onClick={() => setAbaAtiva('CLIENTES_VEICULOS')}
-              className={`btn ${abaAtiva === 'CLIENTES_VEICULOS' ? 'btn-primary' : 'btn-secondary'}`}
-            >
-              <Car size={16} /> Clientes & Veículos
-            </button>
-          )}
-
           {isAbaPermitida('JORNADA') && (
             <button
               onClick={() => setAbaAtiva('JORNADA')}
@@ -371,7 +371,9 @@ const AppContent: React.FC = () => {
         </div>
 
         {/* Tab Content */}
-        {abaAtiva === 'ATENDIMENTOS' && <AtendimentosTab />}
+        {abaAtiva === 'ATENDIMENTOS' && (
+          <AtendimentosTab onIrParaClientes={() => setAbaAtiva('CLIENTES_VEICULOS')} />
+        )}
 
         {abaAtiva === 'ORDENS_SERVICO' && <OrdensServicoTab />}
 

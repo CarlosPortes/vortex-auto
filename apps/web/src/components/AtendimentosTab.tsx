@@ -18,7 +18,11 @@ import { NovoAtendimentoModal } from './NovoAtendimentoModal';
 import { AtendimentoDetalhesModal } from './AtendimentoDetalhesModal';
 import { AtendimentosKanban } from './AtendimentosKanban';
 
-export const AtendimentosTab: React.FC = () => {
+interface AtendimentosTabProps {
+  onIrParaClientes?: () => void;
+}
+
+export const AtendimentosTab: React.FC<AtendimentosTabProps> = ({ onIrParaClientes }) => {
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
@@ -204,6 +208,17 @@ export const AtendimentosTab: React.FC = () => {
               Filtrar
             </button>
           </form>
+
+          {onIrParaClientes && (
+            <button
+              type="button"
+              onClick={onIrParaClientes}
+              className="btn btn-secondary"
+              style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Car size={16} color="var(--primary)" /> Clientes & Veículos
+            </button>
+          )}
 
           <button
             onClick={() => setShowModal(true)}
