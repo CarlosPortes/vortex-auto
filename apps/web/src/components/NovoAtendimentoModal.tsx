@@ -11,6 +11,7 @@ import {
   Check,
   Camera,
   UploadCloud,
+  Plus,
 } from 'lucide-react';
 import { apiRequest } from '../api';
 import { Cliente, Veiculo } from '../types';
@@ -36,6 +37,22 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
   const [nivelCombustivel, setNivelCombustivel] = useState('MEIO');
   const [pertencesDeixados, setPertencesDeixados] = useState('');
   const [avariasPrevias, setAvariasPrevias] = useState('');
+
+  // Modais de Cadastro Rápido (Recepção Ágil)
+  const [showModalNovoCliente, setShowModalNovoCliente] = useState(false);
+  const [novoCliNome, setNovoCliNome] = useState('');
+  const [novoCliTelefone, setNovoCliTelefone] = useState('');
+  const [novoCliCpfCnpj, setNovoCliCpfCnpj] = useState('');
+  const [novoCliEmail, setNovoCliEmail] = useState('');
+  const [salvandoNovoCli, setSalvandoNovoCli] = useState(false);
+
+  const [showModalNovoVeiculo, setShowModalNovoVeiculo] = useState(false);
+  const [novoVeiPlaca, setNovoVeiPlaca] = useState('');
+  const [novoVeiMarca, setNovoVeiMarca] = useState('');
+  const [novoVeiModelo, setNovoVeiModelo] = useState('');
+  const [novoVeiAno, setNovoVeiAno] = useState(2022);
+  const [novoVeiCor, setNovoVeiCor] = useState('Prata');
+  const [salvandoNovoVei, setSalvandoNovoVei] = useState(false);
 
   // Fotos da Vistoria (Disponível quando o Módulo/Add-on de Fotos estiver ativo)
   const [fotosVistoria, setFotosVistoria] = useState<{ id: string; label: string; url: string }[]>([
@@ -77,6 +94,81 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
       }
     }
     setLoadingListas(false);
+  };
+
+  const handleCriarClienteRapido = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novoCliNome.trim() || !novoCliTelefone.trim()) return;
+    setSalvandoNovoCli(true);
+    setErrorMsg('');
+
+    const res = await apiRequest<Cliente>('/clientes', {
+      method: 'POST',
+      body: JSON.stringify({
+        tipo: 'FISICA',
+        nomeRazao: novoCliNome.trim(),
+        telefone: novoCliTelefone.trim(),
+        cpfCnpj: novoCliCpfCnpj.trim() || '00000000000',
+        email: novoCliEmail.trim() || undefined,
+        cidade: 'São Paulo',
+        uf: 'SP',
+      }),
+    });
+
+    setSalvandoNovoCli(false);
+    if (res.sucesso && res.dados) {
+      const novo = res.dados;
+      setClientes((prev) => [novo, ...prev]);
+      setClienteId(novo.id);
+      setShowModalNovoCliente(false);
+      setNovoCliNome('');
+      setNovoCliTelefone('');
+      setNovoCliCpfCnpj('');
+      setNovoCliEmail('');
+    } else {
+      setErrorMsg(res.mensagem || 'Falha ao cadastrar cliente rápido');
+    }
+  };
+
+  const handleCriarVeiculoRapido = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novoVeiPlaca.trim() || !novoVeiModelo.trim()) return;
+    if (!clienteId) {
+      setErrorMsg('Selecione ou cadastre o cliente antes de cadastrar o veículo.');
+      return;
+    }
+    setSalvandoNovoVei(true);
+    setErrorMsg('');
+
+    const res = await apiRequest<Veiculo>('/veiculos', {
+      method: 'POST',
+      body: JSON.stringify({
+        clienteId,
+        placa: novoVeiPlaca.trim().toUpperCase(),
+        marca: novoVeiMarca.trim() || 'Multimarcas',
+        modelo: novoVeiModelo.trim(),
+        anoFabricacao: Number(novoVeiAno) || 2022,
+        anoModelo: Number(novoVeiAno) || 2022,
+        cor: novoVeiCor.trim() || 'Prata',
+        combustivel: 'FLEX',
+        categoriaCodigo: 'PASSEIO',
+      }),
+    });
+
+    setSalvandoNovoVei(false);
+    if (res.sucesso && res.dados) {
+      const novo = res.dados;
+      setVeiculos((prev) => [novo, ...prev]);
+      setVeiculoId(novo.id);
+      setShowModalNovoVeiculo(false);
+      setNovoVeiPlaca('');
+      setNovoVeiMarca('');
+      setNovoVeiModelo('');
+      setNovoVeiAno(2022);
+      setNovoVeiCor('Prata');
+    } else {
+      setErrorMsg(res.mensagem || 'Falha ao cadastrar veículo rápido');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -175,12 +267,32 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Seleção de Cliente e Veículo */}
+            {/* Seleção de Cliente e Veículo com Ações Rápidas */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <div>
-                <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <User size={14} color="var(--primary)" /> Cliente Contratante
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 0 }}>
+                    <User size={14} color="var(--primary)" /> Cliente Contratante
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowModalNovoCliente(true)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#38bdf8',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: 0,
+                    }}
+                  >
+                    <Plus size={12} /> + Novo Cliente
+                  </button>
+                </div>
                 <select
                   value={clienteId}
                   onChange={(e) => setClienteId(e.target.value)}
@@ -197,9 +309,35 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
               </div>
 
               <div>
-                <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Car size={14} color="var(--primary)" /> Veículo Atendido
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 0 }}>
+                    <Car size={14} color="var(--primary)" /> Veículo Atendido
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!clienteId) {
+                        setErrorMsg('Selecione ou cadastre o cliente antes de adicionar um veículo.');
+                        return;
+                      }
+                      setShowModalNovoVeiculo(true);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#38bdf8',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: 0,
+                    }}
+                  >
+                    <Plus size={12} /> + Novo Veículo
+                  </button>
+                </div>
                 <select
                   value={veiculoId}
                   onChange={(e) => setVeiculoId(e.target.value)}
@@ -457,6 +595,247 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
           </form>
         )}
       </div>
+
+      {/* Submodal: Cadastro Rápido de Cliente */}
+      {showModalNovoCliente && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+            padding: '20px',
+          }}
+        >
+          <div
+            className="glass-panel"
+            style={{
+              width: '100%',
+              maxWidth: '460px',
+              background: '#0f172a',
+              border: '1px solid rgba(56, 189, 248, 0.2)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '24px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <User size={18} color="var(--primary)" /> Cadastro Rápido de Cliente
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowModalNovoCliente(false)}
+                className="btn btn-secondary"
+                style={{ padding: '4px', borderRadius: '50%' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCriarClienteRapido} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label className="input-label">Nome Completo / Razão Social *</label>
+                <input
+                  type="text"
+                  required
+                  value={novoCliNome}
+                  onChange={(e) => setNovoCliNome(e.target.value)}
+                  placeholder="Ex: João da Silva"
+                  className="input-field"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="input-label">Telefone / WhatsApp *</label>
+                <input
+                  type="text"
+                  required
+                  value={novoCliTelefone}
+                  onChange={(e) => setNovoCliTelefone(e.target.value)}
+                  placeholder="Ex: (11) 98765-4321"
+                  className="input-field"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label className="input-label">CPF / CNPJ (Opcional)</label>
+                  <input
+                    type="text"
+                    value={novoCliCpfCnpj}
+                    onChange={(e) => setNovoCliCpfCnpj(e.target.value)}
+                    placeholder="000.000.000-00"
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="input-label">E-mail (Opcional)</label>
+                  <input
+                    type="email"
+                    value={novoCliEmail}
+                    onChange={(e) => setNovoCliEmail(e.target.value)}
+                    placeholder="cliente@email.com"
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowModalNovoCliente(false)}
+                  className="btn btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={salvandoNovoCli}
+                  className="btn btn-primary"
+                >
+                  <Check size={16} /> {salvandoNovoCli ? 'Salvando...' : 'Salvar e Selecionar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Submodal: Cadastro Rápido de Veículo */}
+      {showModalNovoVeiculo && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+            padding: '20px',
+          }}
+        >
+          <div
+            className="glass-panel"
+            style={{
+              width: '100%',
+              maxWidth: '460px',
+              background: '#0f172a',
+              border: '1px solid rgba(56, 189, 248, 0.2)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '24px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Car size={18} color="var(--primary)" /> Cadastro Rápido de Veículo
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowModalNovoVeiculo(false)}
+                className="btn btn-secondary"
+                style={{ padding: '4px', borderRadius: '50%' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCriarVeiculoRapido} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label className="input-label">Placa *</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={8}
+                    value={novoVeiPlaca}
+                    onChange={(e) => setNovoVeiPlaca(e.target.value.toUpperCase())}
+                    placeholder="BRA2E19"
+                    className="input-field"
+                    style={{ textTransform: 'uppercase', fontWeight: 700 }}
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="input-label">Marca (Ex: Toyota)</label>
+                  <input
+                    type="text"
+                    value={novoVeiMarca}
+                    onChange={(e) => setNovoVeiMarca(e.target.value)}
+                    placeholder="Toyota, Ford, VW..."
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="input-label">Modelo *</label>
+                <input
+                  type="text"
+                  required
+                  value={novoVeiModelo}
+                  onChange={(e) => setNovoVeiModelo(e.target.value)}
+                  placeholder="Ex: Corolla XEi 2.0"
+                  className="input-field"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label className="input-label">Ano</label>
+                  <input
+                    type="number"
+                    value={novoVeiAno}
+                    onChange={(e) => setNovoVeiAno(Number(e.target.value))}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="input-label">Cor</label>
+                  <input
+                    type="text"
+                    value={novoVeiCor}
+                    onChange={(e) => setNovoVeiCor(e.target.value)}
+                    placeholder="Ex: Prata, Preto"
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowModalNovoVeiculo(false)}
+                  className="btn btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={salvandoNovoVei}
+                  className="btn btn-primary"
+                >
+                  <Check size={16} /> {salvandoNovoVei ? 'Salvando...' : 'Salvar e Selecionar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

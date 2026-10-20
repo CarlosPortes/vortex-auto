@@ -120,11 +120,12 @@ export const DemoPlanProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     if (planoAtivo === 'BASICO') {
-      // Básico vê estritamente o tripé essencial: Recepção, OS sem estoque e Fechamento/Cobrança
+      // Básico vê: Recepção, OS sem estoque, Fechamento/Cobrança e Base de Clientes & Veículos
       const permitidas = [
         'ATENDIMENTOS',
         'ORDENS_SERVICO',
         'FINANCEIRO',
+        'CLIENTES_VEICULOS',
       ];
       return permitidas.includes(aba);
     }
