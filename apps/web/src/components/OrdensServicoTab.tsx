@@ -80,7 +80,6 @@ export const OrdensServicoTab: React.FC = () => {
       return {};
     }
   });
-  const [etapaNovaFoto, setEtapaNovaFoto] = useState<'ANTES' | 'DURANTE' | 'DEPOIS'>('ANTES');
   const [legendaNovaFoto, setLegendaNovaFoto] = useState('');
   const [fotoAmpliada, setFotoAmpliada] = useState<FotoEtapaOS | null>(null);
 
