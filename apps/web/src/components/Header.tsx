@@ -1,6 +1,7 @@
 import React from 'react';
 import { Wrench, Building2, User, LogOut, ShieldCheck } from 'lucide-react';
 import { UserTenantContext } from '../types';
+import { ThemeSelector } from './ThemeSelector';
 
 interface HeaderProps {
   context: UserTenantContext | null;
@@ -9,18 +10,31 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ context, onLogout }) => {
   return (
-    <header className="glass-panel" style={{ margin: '16px 24px', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <header
+      className="glass-panel"
+      style={{
+        margin: '16px 24px',
+        padding: '14px 24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '12px',
+        position: 'relative',
+        zIndex: 500,
+      }}
+    >
       {/* Brand */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         <div style={{
           width: '42px',
           height: '42px',
           borderRadius: '12px',
-          background: 'linear-gradient(135deg, #0ea5e9, #2563eb)',
+          background: 'linear-gradient(135deg, var(--primary), #2563eb)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 0 20px rgba(14, 165, 233, 0.4)'
+          boxShadow: '0 0 20px var(--primary-glow)'
         }}>
           <Wrench size={22} color="#ffffff" />
         </div>
@@ -37,64 +51,68 @@ export const Header: React.FC<HeaderProps> = ({ context, onLogout }) => {
         </div>
       </div>
 
-      {/* Tenant Context Indicator (HU-001) */}
-      {context && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            padding: '8px 16px',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--border-subtle)'
-          }}>
-            <Building2 size={18} color="var(--primary)" />
-            <div>
-              <div style={{ fontSize: '0.86rem', fontWeight: 600 }}>{context.razaoSocialEmpresa}</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tenant ID: {context.empresaId.slice(0, 8)}...</div>
-            </div>
-          </div>
+      {/* Tenant Context Indicator (HU-001) + Theme Selector */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+        <ThemeSelector />
 
-          {/* User Info */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {context && (
+          <>
             <div style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '50%',
-              background: 'rgba(14, 165, 233, 0.15)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid rgba(14, 165, 233, 0.3)'
+              gap: '10px',
+              background: 'var(--bg-subtle)',
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-subtle)'
             }}>
-              <User size={18} color="var(--primary)" />
-            </div>
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: '0.86rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {context.nomeUsuario}
-                <ShieldCheck size={14} color="#34d399" />
-              </div>
-              <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
-                {context.perfis.map((p) => (
-                  <span key={p} className="badge badge-purple" style={{ fontSize: '0.65rem', padding: '2px 6px' }}>
-                    {p}
-                  </span>
-                ))}
+              <Building2 size={18} color="var(--primary)" />
+              <div>
+                <div style={{ fontSize: '0.86rem', fontWeight: 600 }}>{context.razaoSocialEmpresa}</div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tenant ID: {context.empresaId.slice(0, 8)}...</div>
               </div>
             </div>
 
-            <button
-              onClick={onLogout}
-              className="btn btn-secondary"
-              title="Encerrar Sessão"
-              style={{ padding: '8px', marginLeft: '6px' }}
-            >
-              <LogOut size={16} />
-            </button>
-          </div>
-        </div>
-      )}
+            {/* User Info */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                background: 'var(--primary-glow)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <User size={18} color="var(--primary)" />
+              </div>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: '0.86rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {context.nomeUsuario}
+                  <ShieldCheck size={14} color="var(--accent-green)" />
+                </div>
+                <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
+                  {context.perfis.map((p) => (
+                    <span key={p} className="badge badge-purple" style={{ fontSize: '0.65rem', padding: '2px 6px' }}>
+                      {p}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={onLogout}
+                className="btn btn-secondary"
+                title="Encerrar Sessão"
+                style={{ padding: '8px', marginLeft: '6px' }}
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </header>
   );
 };

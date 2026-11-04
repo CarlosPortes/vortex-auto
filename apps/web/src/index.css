@@ -1,23 +1,36 @@
-:root {
+:root,
+[data-theme="vortex-dark"] {
   --bg-main: #090d16;
   --bg-surface: #111827;
-  --bg-card: rgba(17, 24, 39, 0.75);
-  --bg-card-hover: rgba(31, 41, 55, 0.85);
+  --bg-card: rgba(17, 24, 39, 0.78);
+  --bg-card-hover: rgba(31, 41, 55, 0.88);
+  --bg-elevated: #0f172a;
+  --bg-subtle: rgba(255, 255, 255, 0.04);
+  --bg-input: rgba(15, 23, 42, 0.65);
+  --bg-kanban-col: rgba(15, 23, 42, 0.65);
+  --bg-kanban-card: rgba(30, 41, 59, 0.88);
+  --bg-demo-bar: linear-gradient(90deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.85));
+
   --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.16);
   --border-focus: #0ea5e9;
-  
+
   --primary: #0ea5e9;
   --primary-hover: #38bdf8;
-  --primary-glow: rgba(14, 165, 233, 0.25);
-  
+  --primary-glow: rgba(14, 165, 233, 0.22);
+
   --accent-amber: #f59e0b;
   --accent-green: #10b981;
   --accent-red: #ef4444;
   --accent-purple: #8b5cf6;
-  
+
   --text-main: #f9fafb;
+  --text: #f9fafb;
   --text-muted: #9ca3af;
   --text-dim: #6b7280;
+
+  --shadow-panel: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.28);
 
   --font-heading: 'Outfit', sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -26,6 +39,117 @@
   --radius-md: 12px;
   --radius-lg: 18px;
   --radius-xl: 24px;
+}
+
+/* ==========================================================================
+   TEMA 2: OFICINA LIGHT (Claro Limpo • Alto Contraste para Pátio Iluminado)
+   ========================================================================== */
+[data-theme="oficina-light"] {
+  --bg-main: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.94);
+  --bg-card-hover: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-subtle: rgba(15, 23, 42, 0.045);
+  --bg-input: #ffffff;
+  --bg-kanban-col: #e2e8f0;
+  --bg-kanban-card: #ffffff;
+  --bg-demo-bar: linear-gradient(90deg, #ffffff, #f8fafc);
+
+  --border-subtle: rgba(15, 23, 42, 0.12);
+  --border-hover: rgba(15, 23, 42, 0.22);
+  --border-focus: #0284c7;
+
+  --primary: #0284c7;
+  --primary-hover: #0369a1;
+  --primary-glow: rgba(2, 132, 199, 0.16);
+
+  --accent-amber: #d97706;
+  --accent-green: #059669;
+  --accent-red: #dc2626;
+  --accent-purple: #7c3aed;
+
+  --text-main: #0f172a;
+  --text: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #64748b;
+
+  --shadow-panel: 0 4px 20px 0 rgba(15, 23, 42, 0.07);
+  --shadow-card: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+/* ==========================================================================
+   TEMA 3: WARM DAYLIGHT (Claro Suave / Areia • Conforto Visual no Balcão)
+   ========================================================================== */
+[data-theme="warm-daylight"] {
+  --bg-main: #f5f2eb;
+  --bg-surface: #fffdf9;
+  --bg-card: rgba(255, 253, 249, 0.94);
+  --bg-card-hover: #fffdf9;
+  --bg-elevated: #fffdf9;
+  --bg-subtle: rgba(28, 25, 23, 0.05);
+  --bg-input: #ffffff;
+  --bg-kanban-col: #ebe5d9;
+  --bg-kanban-card: #fffdf9;
+  --bg-demo-bar: linear-gradient(90deg, #fffdf9, #f7f3e9);
+
+  --border-subtle: rgba(28, 25, 23, 0.13);
+  --border-hover: rgba(28, 25, 23, 0.24);
+  --border-focus: #0369a1;
+
+  --primary: #0369a1;
+  --primary-hover: #075985;
+  --primary-glow: rgba(3, 105, 161, 0.15);
+
+  --accent-amber: #b45309;
+  --accent-green: #047857;
+  --accent-red: #b91c1c;
+  --accent-purple: #6d28d9;
+
+  --text-main: #1c1917;
+  --text: #1c1917;
+  --text-muted: #57534e;
+  --text-dim: #78716c;
+
+  --shadow-panel: 0 4px 18px 0 rgba(28, 25, 23, 0.07);
+  --shadow-card: 0 2px 8px rgba(28, 25, 23, 0.08);
+}
+
+/* ==========================================================================
+   TEMA 4: CARBON RACING (Escuro Grafite Carbono & Laranja Automotivo)
+   ========================================================================== */
+[data-theme="carbon-racing"] {
+  --bg-main: #111215;
+  --bg-surface: #181a1f;
+  --bg-card: rgba(24, 26, 31, 0.88);
+  --bg-card-hover: rgba(34, 37, 44, 0.95);
+  --bg-elevated: #1b1d22;
+  --bg-subtle: rgba(255, 255, 255, 0.045);
+  --bg-input: rgba(17, 18, 21, 0.78);
+  --bg-kanban-col: rgba(24, 26, 31, 0.78);
+  --bg-kanban-card: rgba(32, 35, 42, 0.95);
+  --bg-demo-bar: linear-gradient(90deg, rgba(24, 26, 31, 0.96), rgba(35, 38, 46, 0.9));
+
+  --border-subtle: rgba(255, 255, 255, 0.09);
+  --border-hover: rgba(245, 158, 11, 0.3);
+  --border-focus: #f59e0b;
+
+  --primary: #f59e0b;
+  --primary-hover: #fbbf24;
+  --primary-glow: rgba(245, 158, 11, 0.24);
+
+  --accent-amber: #f59e0b;
+  --accent-green: #10b981;
+  --accent-red: #ef4444;
+  --accent-purple: #a855f7;
+
+  --text-main: #f3f4f6;
+  --text: #f3f4f6;
+  --text-muted: #9ca3af;
+  --text-dim: #6b7280;
+
+  --shadow-panel: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
 * {
@@ -41,14 +165,22 @@ body {
   min-height: 100vh;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
   background-image: 
-    radial-gradient(circle at 15% 15%, rgba(14, 165, 233, 0.07) 0%, transparent 45%),
+    radial-gradient(circle at 15% 15%, var(--primary-glow) 0%, transparent 45%),
     radial-gradient(circle at 85% 85%, rgba(245, 158, 11, 0.04) 0%, transparent 45%);
+}
+
+[data-color-scheme="light"] body {
+  background-image:
+    radial-gradient(circle at 15% 15%, rgba(2, 132, 199, 0.06) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(245, 158, 11, 0.05) 0%, transparent 45%);
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
   letter-spacing: -0.02em;
+  color: var(--text-main);
 }
 
 /* Glassmorphism Classes */
@@ -58,11 +190,12 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  box-shadow: var(--shadow-panel);
+  color: var(--text-main);
 }
 
 .glass-panel:hover {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: var(--border-hover);
 }
 
 /* Custom Scrollbar */
@@ -79,6 +212,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #4b5563;
+}
+
+[data-color-scheme="light"] ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+[data-color-scheme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 /* Buttons */
@@ -98,26 +238,32 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #0ea5e9, #0284c7);
-  color: white;
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+  color: #ffffff;
   box-shadow: 0 4px 14px var(--primary-glow);
 }
 
+[data-theme="carbon-racing"] .btn-primary {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #111215;
+  font-weight: 700;
+}
+
 .btn-primary:hover {
-  background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+  filter: brightness(1.08);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.4);
+  box-shadow: 0 6px 20px var(--primary-glow);
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-subtle);
   color: var(--text-main);
   border: 1px solid var(--border-subtle);
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--bg-card-hover);
+  border-color: var(--border-hover);
 }
 
 /* Badges */
@@ -156,23 +302,88 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
-/* Inputs */
+.badge-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.badge-gray,
+.badge-secondary {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Alto contraste para Badges em temas Claros */
+[data-color-scheme="light"] .badge-blue {
+  background: rgba(2, 132, 199, 0.12);
+  color: #0369a1;
+  border-color: rgba(2, 132, 199, 0.3);
+}
+
+[data-color-scheme="light"] .badge-green {
+  background: rgba(5, 150, 105, 0.12);
+  color: #047857;
+  border-color: rgba(5, 150, 105, 0.3);
+}
+
+[data-color-scheme="light"] .badge-amber {
+  background: rgba(217, 119, 6, 0.13);
+  color: #b45309;
+  border-color: rgba(217, 119, 6, 0.32);
+}
+
+[data-color-scheme="light"] .badge-purple {
+  background: rgba(124, 58, 237, 0.12);
+  color: #6d28d9;
+  border-color: rgba(124, 58, 237, 0.3);
+}
+
+[data-color-scheme="light"] .badge-danger {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+/* Inputs, Selects & Textareas */
+.input-field,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="datetime-local"],
+select,
+textarea {
+  color: var(--text-main);
+  font-family: var(--font-body);
+}
+
 .input-field {
   width: 100%;
   padding: 10px 14px;
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  color: white;
+  color: var(--text-main);
   font-size: 0.92rem;
   font-family: var(--font-body);
   transition: all 0.2s ease;
 }
 
-.input-field:focus {
+.input-field:focus,
+input:focus,
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+select option {
+  background-color: var(--bg-surface);
+  color: var(--text-main);
 }
 
 .input-label {
@@ -183,12 +394,26 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 6px;
 }
 
+/* Adaptação inteligente de inputs e cartões para temas claros */
+[data-color-scheme="light"] input,
+[data-color-scheme="light"] select,
+[data-color-scheme="light"] textarea {
+  background-color: var(--bg-input) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+[data-color-scheme="light"] input::placeholder,
+[data-color-scheme="light"] textarea::placeholder {
+  color: var(--text-dim) !important;
+}
+
 /* Kanban Board Styling */
 .kanban-board-container::-webkit-scrollbar {
   height: 10px;
 }
 .kanban-board-container::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--bg-subtle);
   border-radius: 8px;
 }
 .kanban-board-container::-webkit-scrollbar-thumb {
@@ -199,13 +424,19 @@ h1, h2, h3, h4, h5, h6 {
   background: #475569;
 }
 
+[data-color-scheme="light"] .kanban-board-container::-webkit-scrollbar-thumb,
+[data-color-scheme="light"] .kanban-top-scroll::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+}
+
 .kanban-card {
   user-select: none;
+  background: var(--bg-kanban-card);
 }
 .kanban-card:hover {
-  border-color: rgba(255, 255, 255, 0.22) !important;
+  border-color: var(--border-hover) !important;
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: var(--shadow-card) !important;
 }
 
 @keyframes fadeIn {
@@ -224,7 +455,7 @@ h1, h2, h3, h4, h5, h6 {
   height: 10px;
 }
 .kanban-top-scroll::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--bg-subtle);
   border-radius: 8px;
 }
 .kanban-top-scroll::-webkit-scrollbar-thumb {
@@ -243,11 +474,9 @@ h1, h2, h3, h4, h5, h6 {
   background: transparent;
 }
 .kanban-column-cards::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border-subtle);
   border-radius: 4px;
 }
 .kanban-column-cards::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--border-hover);
 }
-
-

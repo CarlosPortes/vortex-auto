@@ -22,9 +22,9 @@ export const DemoPlanBar: React.FC = () => {
         style={{
           marginBottom: '20px',
           padding: '12px 20px',
-          background: 'linear-gradient(90deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.85))',
-          border: '1px solid rgba(56, 189, 248, 0.25)',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35)',
+          background: 'var(--bg-demo-bar)',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-card)',
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
@@ -68,7 +68,7 @@ export const DemoPlanBar: React.FC = () => {
         <div
           style={{
             display: 'inline-flex',
-            background: 'rgba(0, 0, 0, 0.4)',
+            background: 'var(--bg-subtle)',
             padding: '4px',
             borderRadius: '12px',
             border: '1px solid var(--border-subtle)',
@@ -136,11 +136,11 @@ export const DemoPlanBar: React.FC = () => {
               gap: '6px',
               transition: 'all 0.2s',
               background: planoAtivo === 'AVANCADO' ? 'linear-gradient(135deg, #0ea5e9, #2563eb)' : 'transparent',
-              color: '#ffffff',
+              color: planoAtivo === 'AVANCADO' ? '#ffffff' : 'var(--text-muted)',
               boxShadow: planoAtivo === 'AVANCADO' ? '0 2px 8px rgba(14, 165, 233, 0.4)' : 'none',
             }}
           >
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ffffff' }} />
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: planoAtivo === 'AVANCADO' ? '#ffffff' : '#0ea5e9' }} />
             🔵 Avançado
           </button>
         </div>
@@ -153,21 +153,21 @@ export const DemoPlanBar: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              background: 'rgba(255, 255, 255, 0.04)',
+              background: 'var(--bg-subtle)',
               padding: '4px 12px',
               borderRadius: '10px',
               border: '1px solid var(--border-subtle)',
             }}
           >
-            <Camera size={15} color={comFotos ? '#38bdf8' : 'var(--text-muted)'} />
+            <Camera size={15} color={comFotos ? 'var(--primary)' : 'var(--text-muted)'} />
             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Fotos:</span>
             <button
               type="button"
               onClick={() => setComFotos(!comFotos)}
               style={{
-                background: comFotos ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.08)',
-                border: `1px solid ${comFotos ? '#38bdf8' : 'var(--border-subtle)'}`,
-                color: comFotos ? '#38bdf8' : 'var(--text-muted)',
+                background: comFotos ? 'var(--primary-glow)' : 'var(--bg-subtle)',
+                border: `1px solid ${comFotos ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                color: comFotos ? 'var(--primary)' : 'var(--text-muted)',
                 borderRadius: '6px',
                 padding: '3px 8px',
                 fontSize: '0.72rem',

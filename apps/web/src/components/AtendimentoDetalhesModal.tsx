@@ -595,7 +595,7 @@ export const AtendimentoDetalhesModal: React.FC<AtendimentoDetalhesModalProps> =
         maxWidth: '920px',
         maxHeight: '92vh',
         overflowY: 'auto',
-        background: '#0d1322',
+        background: 'var(--bg-surface)',
         padding: '30px',
         borderRadius: 'var(--radius-lg)',
       }}>

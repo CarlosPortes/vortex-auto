@@ -252,6 +252,13 @@ export interface OrdemServico {
     queixaPrincipal: string;
     cliente: { id: string; nomeRazao: string; telefone: string };
     veiculo: { id: string; placa: string; modelo: string; marca: string };
+    cobranca?: {
+      id: string;
+      codigoFormatado: string;
+      status: string;
+      valorLiquido: number;
+      valorRecebido: number;
+    } | null;
   };
   progresso: {
     totalAtividades: number;
@@ -570,8 +577,27 @@ export type PlanoSistema = 'BASICO' | 'INTERMEDIARIO' | 'AVANCADO';
 export interface ItemOSAvulso {
   id: string;
   tipo: 'SERVICO' | 'PECA';
+  codigoServico?: string;
   descricao: string;
   quantidade: number;
   valorUnitario: number;
   valorTotal: number;
+}
+
+export interface ServicoCatalogo {
+  id: string;
+  codigo: string;
+  nome: string;
+  categoria: 'SOLDA_SERRALHERIA' | 'FERRAMENTAS_BANCADA' | 'MECANICA_GERAL' | 'FREIOS_SUSPENSAO' | 'ELETRICA_DIAGNOSTICO' | 'OUTROS';
+  valorSugerido: number;
+  tempoEstimadoMinutos: number;
+  descricaoPadrao?: string;
+}
+
+export interface FotoEtapaOS {
+  id: string;
+  etapa: 'ANTES' | 'DURANTE' | 'DEPOIS';
+  legenda: string;
+  url: string;
+  dataHora: string;
 }

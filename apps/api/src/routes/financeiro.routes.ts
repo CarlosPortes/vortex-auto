@@ -253,6 +253,7 @@ export async function financeiroRoutes(app: FastifyInstance) {
       }
 
       const { numeroParcelas, primeiroVencimentoDias, observacoes } = parseResult.data;
+      const valorManualBody = Number((request.body as any)?.valorManual || 0);
 
       // 1. Validar atendimento
       const atendimento = await prisma.atendimento.findFirst({
@@ -282,16 +283,19 @@ export async function financeiroRoutes(app: FastifyInstance) {
       }
 
       const versaoOrcamento = atendimento.orcamento?.versoes[0];
-      if (!versaoOrcamento) {
+      if (!versaoOrcamento && valorManualBody <= 0) {
         return reply.status(400).send({
           sucesso: false,
-          mensagem: 'Não é possível gerar cobrança para atendimento sem orçamento aprovado.',
+          mensagem: 'Informe o valor dos serviços na Ordem de Serviço ou aprove um orçamento antes de gerar a cobrança.',
         });
       }
 
-      const valorTotal = Number(versaoOrcamento.valorTotalPecas) + Number(versaoOrcamento.valorTotalServicos);
-      const valorDesconto = Number(versaoOrcamento.valorDescontoGeral);
-      const valorLiquido = Number(versaoOrcamento.valorTotalFinal);
+      const valorOrcamentoTotal = versaoOrcamento
+        ? Number(versaoOrcamento.valorTotalPecas) + Number(versaoOrcamento.valorTotalServicos)
+        : 0;
+      const valorTotal = valorManualBody > 0 ? valorManualBody : valorOrcamentoTotal;
+      const valorDesconto = versaoOrcamento ? Number(versaoOrcamento.valorDescontoGeral) : 0;
+      const valorLiquido = valorManualBody > 0 ? valorManualBody : Number(versaoOrcamento?.valorTotalFinal || 0);
 
       if (valorLiquido <= 0) {
         return reply.status(400).send({

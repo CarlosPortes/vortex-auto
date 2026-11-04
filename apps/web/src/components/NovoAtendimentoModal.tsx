@@ -14,8 +14,9 @@ import {
   Plus,
 } from 'lucide-react';
 import { apiRequest } from '../api';
-import { Cliente, Veiculo } from '../types';
+import { Cliente, Veiculo, ServicoCatalogo } from '../types';
 import { useDemoPlan } from '../context/DemoPlanContext';
+import { obterCatalogoServicos } from './CatalogoServicosModal';
 
 interface NovoAtendimentoModalProps {
   onClose: () => void;
@@ -27,6 +28,15 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [veiculos, setVeiculos] = useState<Veiculo[]>([]);
   const [loadingListas, setLoadingListas] = useState(true);
+
+  // Modalidade de Atendimento: Veículo Automotivo vs Ferramenta / Solda / Bancada
+  const [modalidadeObjeto, setModalidadeObjeto] = useState<'VEICULO' | 'BANCADA'>('VEICULO');
+  const [objetoBancadaNome, setObjetoBancadaNome] = useState('');
+  const [objetoBancadaTipo] = useState('Ferramenta de Trabalho (Rastelo, Foice, Enxada)');
+  const [catalogoServicos] = useState<ServicoCatalogo[]>(() => obterCatalogoServicos());
+  const [servicoCatalogoId, setServicoCatalogoId] = useState<string>('');
+  const [valorServicoInicial, setValorServicoInicial] = useState<number>(45);
+  const [gerarOSImediata, setGerarOSImediata] = useState<boolean>(false);
 
   // Form Fields
   const [clienteId, setClienteId] = useState('');
@@ -173,31 +183,113 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clienteId || !veiculoId) {
-      setErrorMsg('Selecione o cliente e o veículo.');
+    if (!clienteId) {
+      setErrorMsg('Selecione o cliente contratante.');
+      return;
+    }
+
+    if (modalidadeObjeto === 'VEICULO' && !veiculoId) {
+      setErrorMsg('Selecione o veículo atendido.');
+      return;
+    }
+
+    if (modalidadeObjeto === 'BANCADA' && !objetoBancadaNome.trim()) {
+      setErrorMsg('Informe qual ferramenta, peça ou objeto será trabalhado (ex: Rastelo, Foice).');
       return;
     }
 
     setLoadingSubmit(true);
     setErrorMsg('');
 
-    const res = await apiRequest('/atendimentos', {
+    let targetVeiculoId = veiculoId;
+
+    // Se for Serviço de Bancada / Ferramenta (sem carro), cria registro de objeto técnico automaticamente
+    if (modalidadeObjeto === 'BANCADA') {
+      const sufixo = String(Math.floor(1000 + Math.random() * 9000));
+      const placaBancada = `SRV${sufixo}`;
+      const resObj = await apiRequest<Veiculo>('/veiculos', {
+        method: 'POST',
+        body: JSON.stringify({
+          clienteId,
+          placa: placaBancada,
+          marca: 'Bancada / Avulso',
+          modelo: objetoBancadaNome.trim(),
+          anoFabricacao: new Date().getFullYear(),
+          anoModelo: new Date().getFullYear(),
+          cor: objetoBancadaTipo,
+          combustivel: 'N/A',
+          categoriaCodigo: 'UTILITARIO',
+        }),
+      });
+
+      if (!resObj.sucesso || !resObj.dados) {
+        setLoadingSubmit(false);
+        setErrorMsg(resObj.mensagem || 'Não foi possível registrar o item/ferramenta de bancada.');
+        return;
+      }
+      targetVeiculoId = resObj.dados.id;
+    }
+
+    const res = await apiRequest<any>('/atendimentos', {
       method: 'POST',
       body: JSON.stringify({
         clienteId,
-        veiculoId,
+        veiculoId: targetVeiculoId,
         queixaPrincipal,
         previsaoEntrega: previsaoEntrega ? new Date(previsaoEntrega).toISOString() : undefined,
-        quilometragem: Number(quilometragem),
-        nivelCombustivel,
+        quilometragem: modalidadeObjeto === 'BANCADA' ? 0 : Number(quilometragem),
+        nivelCombustivel: modalidadeObjeto === 'BANCADA' ? 'RESERVA' : nivelCombustivel,
         pertencesDeixados,
         avariasPrevias,
-        temEstepe,
-        temMacaco,
-        temChaveRoda,
-        temManualChaveReserva,
+        temEstepe: modalidadeObjeto === 'BANCADA' ? false : temEstepe,
+        temMacaco: modalidadeObjeto === 'BANCADA' ? false : temMacaco,
+        temChaveRoda: modalidadeObjeto === 'BANCADA' ? false : temChaveRoda,
+        temManualChaveReserva: modalidadeObjeto === 'BANCADA' ? false : temManualChaveReserva,
       }),
     });
+
+    if (res.sucesso && res.dados?.id && (gerarOSImediata || modalidadeObjeto === 'BANCADA')) {
+      const atendId = res.dados.id;
+      const srvSelecionado = catalogoServicos.find((s) => s.id === servicoCatalogoId);
+      const descAtividade = srvSelecionado
+        ? `${srvSelecionado.nome} — ${modalidadeObjeto === 'BANCADA' ? objetoBancadaNome.trim() : queixaPrincipal}`
+        : queixaPrincipal;
+      const tempoEst = srvSelecionado ? srvSelecionado.tempoEstimadoMinutos : 30;
+      const valorUnit = srvSelecionado ? Number(valorServicoInicial || srvSelecionado.valorSugerido) : Number(valorServicoInicial || 50);
+
+      // Planejar a OS automaticamente
+      const resOS = await apiRequest<any>('/os/planejar', {
+        method: 'POST',
+        body: JSON.stringify({
+          atendimentoId: atendId,
+          observacoesTecnicas:
+            modalidadeObjeto === 'BANCADA'
+              ? `Serviço de Bancada / Ferramenta: ${objetoBancadaNome.trim()} (${objetoBancadaTipo}). Solicitação: ${queixaPrincipal}`
+              : `Abertura direta com OS: ${queixaPrincipal}`,
+          atividades: [
+            {
+              descricao: descAtividade,
+              tempoEstimadoMinutos: tempoEst,
+            },
+          ],
+        }),
+      });
+
+      // Sincronizar o valor do serviço na OS/Orçamento para faturamento imediato
+      if (resOS.sucesso && resOS.dados?.id && valorUnit > 0) {
+        await apiRequest(`/os/${resOS.dados.id}/adicionar-servico`, {
+          method: 'POST',
+          body: JSON.stringify({
+            tipo: 'SERVICO',
+            descricao: descAtividade,
+            quantidade: 1,
+            valorUnitario: valorUnit,
+            tempoEstimadoMinutos: tempoEst,
+            criarAtividade: false, // A atividade principal já foi criada no /os/planejar
+          }),
+        });
+      }
+    }
 
     setLoadingSubmit(false);
     if (res.sucesso) {
@@ -227,7 +319,7 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
         maxWidth: '740px',
         maxHeight: '90vh',
         overflowY: 'auto',
-        background: '#0d1322',
+        background: 'var(--bg-surface)',
         padding: '30px',
         borderRadius: 'var(--radius-lg)',
       }}>
@@ -267,7 +359,71 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Seleção de Cliente e Veículo com Ações Rápidas */}
+            {/* Seletor de Modalidade: Veículo Automotivo vs Ferramenta / Solda / Bancada */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '10px',
+                background: 'var(--bg-subtle)',
+                padding: '6px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setModalidadeObjeto('VEICULO');
+                  setGerarOSImediata(false);
+                }}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: modalidadeObjeto === 'VEICULO' ? '1.5px solid var(--primary)' : '1px solid transparent',
+                  background: modalidadeObjeto === 'VEICULO' ? 'var(--primary-glow)' : 'transparent',
+                  color: modalidadeObjeto === 'VEICULO' ? 'var(--primary)' : 'var(--text-muted)',
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                🚗 Veículo Automotivo (Com Placa)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setModalidadeObjeto('BANCADA');
+                  setGerarOSImediata(true);
+                  if (!queixaPrincipal) {
+                    setQueixaPrincipal('Solda e recuperação de ferramenta de trabalho');
+                  }
+                }}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: modalidadeObjeto === 'BANCADA' ? '1.5px solid var(--accent-amber)' : '1px solid transparent',
+                  background: modalidadeObjeto === 'BANCADA' ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
+                  color: modalidadeObjeto === 'BANCADA' ? 'var(--accent-amber)' : 'var(--text-muted)',
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                🛠️ Ferramenta / Solda / Bancada (Sem Placa)
+              </button>
+            </div>
+
+            {/* Seleção de Cliente e Veículo/Ferramenta com Ações Rápidas */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
@@ -280,7 +436,7 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: '#38bdf8',
+                      color: 'var(--primary)',
                       fontSize: '0.72rem',
                       fontWeight: 600,
                       cursor: 'pointer',
@@ -308,145 +464,246 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
                 </select>
               </div>
 
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 0 }}>
-                    <Car size={14} color="var(--primary)" /> Veículo Atendido
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!clienteId) {
-                        setErrorMsg('Selecione ou cadastre o cliente antes de adicionar um veículo.');
-                        return;
-                      }
-                      setShowModalNovoVeiculo(true);
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#38bdf8',
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: 0,
-                    }}
+              {modalidadeObjeto === 'VEICULO' ? (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 0 }}>
+                      <Car size={14} color="var(--primary)" /> Veículo Atendido
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!clienteId) {
+                          setErrorMsg('Selecione ou cadastre o cliente antes de adicionar um veículo.');
+                          return;
+                        }
+                        setShowModalNovoVeiculo(true);
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--primary)',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: 0,
+                      }}
+                    >
+                      <Plus size={12} /> + Novo Veículo
+                    </button>
+                  </div>
+                  <select
+                    value={veiculoId}
+                    onChange={(e) => setVeiculoId(e.target.value)}
+                    className="input-field"
+                    required
                   >
-                    <Plus size={12} /> + Novo Veículo
-                  </button>
+                    <option value="">Selecione o Veículo...</option>
+                    {veiculos.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.placa} — {v.marca} {v.modelo} ({v.categoria})
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <select
-                  value={veiculoId}
-                  onChange={(e) => setVeiculoId(e.target.value)}
-                  className="input-field"
-                  required
-                >
-                  <option value="">Selecione o Veículo...</option>
-                  {veiculos.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.placa} — {v.marca} {v.modelo} ({v.categoria})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              ) : (
+                <div>
+                  <label className="input-label">🛠️ Qual Ferramenta / Peça / Objeto? *</label>
+                  <input
+                    type="text"
+                    required
+                    value={objetoBancadaNome}
+                    onChange={(e) => setObjetoBancadaNome(e.target.value)}
+                    placeholder="Ex: Rastelo de ferro, Foice, Enxada, Suporte..."
+                    className="input-field"
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Queixa Principal do Cliente */}
+            {/* Seleção Rápida do Catálogo de Serviços (Para Solda, Ferramentas ou Serviços Rápidos) */}
+            <div
+              style={{
+                background: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '12px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px', alignItems: 'end' }}>
+                <div>
+                  <label className="input-label">
+                    📋 Selecionar Serviço do Catálogo da Oficina (Opcional)
+                  </label>
+                  <select
+                    value={servicoCatalogoId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setServicoCatalogoId(id);
+                      const srv = catalogoServicos.find((s) => s.id === id);
+                      if (srv) {
+                        setValorServicoInicial(srv.valorSugerido);
+                        setQueixaPrincipal(
+                          `${srv.nome}${objetoBancadaNome ? ` em ${objetoBancadaNome}` : ''}${srv.descricaoPadrao ? ` — ${srv.descricaoPadrao}` : ''}`
+                        );
+                        setGerarOSImediata(true);
+                      }
+                    }}
+                    className="input-field"
+                  >
+                    <option value="">-- Digitar livremente abaixo ou escolher do catálogo --</option>
+                    {catalogoServicos.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        [{s.codigo}] {s.nome} — R$ {s.valorSugerido.toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="input-label">Valor Combinado (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={valorServicoInicial}
+                    onChange={(e) => setValorServicoInicial(Number(e.target.value))}
+                    className="input-field"
+                  />
+                </div>
+              </div>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  color: 'var(--primary)',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={gerarOSImediata || modalidadeObjeto === 'BANCADA'}
+                  onChange={(e) => setGerarOSImediata(e.target.checked)}
+                />
+                ⚡ Já gerar a Ordem de Serviço (OS) pronta com este serviço e valor para faturamento rápido
+              </label>
+            </div>
+
+            {/* Queixa Principal / Descrição do Serviço */}
             <div>
-              <label className="input-label">Relato / Queixa Principal do Cliente (Sintomas informados)</label>
+              <label className="input-label">
+                {modalidadeObjeto === 'BANCADA'
+                  ? 'Descrição do Serviço a Executar (Solda, Reparo, Afiação, etc.) *'
+                  : 'Relato / Queixa Principal do Cliente (Sintomas ou Serviço Solicitado) *'}
+              </label>
               <textarea
                 required
-                rows={3}
+                rows={2}
                 value={queixaPrincipal}
                 onChange={(e) => setQueixaPrincipal(e.target.value)}
-                placeholder="Ex: Barulho na suspensão dianteira ao passar em lombadas, luz da injeção acesa no painel..."
+                placeholder={
+                  modalidadeObjeto === 'BANCADA'
+                    ? 'Ex: Soldar dentes e cabo do rastelo de ferro + solda na trinca da foice roçadeira...'
+                    : 'Ex: Barulho na suspensão dianteira ao passar em lombadas, revisão de freios...'
+                }
                 className="input-field"
                 style={{ resize: 'vertical' }}
               />
             </div>
 
-            {/* Medições e Entrada */}
-            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
-              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#38bdf8', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Gauge size={16} /> Medições de Entrada no Pátio (HU-009)
-              </div>
+            {/* Medições e Entrada (Apenas quando for Veículo Automotivo) */}
+            {modalidadeObjeto === 'VEICULO' && (
+              <>
+                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#38bdf8', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Gauge size={16} /> Medições de Entrada no Pátio (HU-009)
+                  </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label className="input-label">Quilometragem (KM)</label>
-                  <input
-                    type="number"
-                    required
-                    min={0}
-                    value={quilometragem}
-                    onChange={(e) => setQuilometragem(Number(e.target.value))}
-                    className="input-field"
-                    placeholder="Ex: 68500"
-                  />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label className="input-label">Quilometragem (KM)</label>
+                      <input
+                        type="number"
+                        required
+                        min={0}
+                        value={quilometragem}
+                        onChange={(e) => setQuilometragem(Number(e.target.value))}
+                        className="input-field"
+                        placeholder="Ex: 68500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Fuel size={14} /> Nível de Combustível
+                      </label>
+                      <select
+                        value={nivelCombustivel}
+                        onChange={(e) => setNivelCombustivel(e.target.value)}
+                        className="input-field"
+                      >
+                        <option value="RESERVA">Reserva</option>
+                        <option value="UM_QUARTO">1/4 Tanque</option>
+                        <option value="MEIO">1/2 Tanque (Meio)</option>
+                        <option value="TRES_QUARTOS">3/4 Tanque</option>
+                        <option value="CHEIO">Tanque Cheio</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="input-label">Previsão Prometida</label>
+                      <input
+                        type="date"
+                        value={previsaoEntrega}
+                        onChange={(e) => setPrevisaoEntrega(e.target.value)}
+                        className="input-field"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Fuel size={14} /> Nível de Combustível
-                  </label>
-                  <select
-                    value={nivelCombustivel}
-                    onChange={(e) => setNivelCombustivel(e.target.value)}
-                    className="input-field"
-                  >
-                    <option value="RESERVA">Reserva</option>
-                    <option value="UM_QUARTO">1/4 Tanque</option>
-                    <option value="MEIO">1/2 Tanque (Meio)</option>
-                    <option value="TRES_QUARTOS">3/4 Tanque</option>
-                    <option value="CHEIO">Tanque Cheio</option>
-                  </select>
+                {/* Checklist Rápido de Recepção */}
+                <div style={{
+                  background: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '14px',
+                }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <CheckSquare size={14} color="var(--primary)" /> Checklist Obrigatório de Entrada
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={temEstepe} onChange={(e) => setTemEstepe(e.target.checked)} />
+                      Possui Estepe
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={temMacaco} onChange={(e) => setTemMacaco(e.target.checked)} />
+                      Possui Macaco
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={temChaveRoda} onChange={(e) => setTemChaveRoda(e.target.checked)} />
+                      Chave de Roda
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={temManualChaveReserva} onChange={(e) => setTemManualChaveReserva(e.target.checked)} />
+                      Manual / Chave Reserva
+                    </label>
+                  </div>
                 </div>
-
-                <div>
-                  <label className="input-label">Previsão Prometida</label>
-                  <input
-                    type="date"
-                    value={previsaoEntrega}
-                    onChange={(e) => setPrevisaoEntrega(e.target.value)}
-                    className="input-field"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Checklist Rápido de Recepção */}
-            <div style={{
-              background: 'rgba(255,255,255,0.02)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '14px',
-            }}>
-              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CheckSquare size={14} color="var(--primary)" /> Checklist Obrigatório de Entrada
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={temEstepe} onChange={(e) => setTemEstepe(e.target.checked)} />
-                  Possui Estepe
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={temMacaco} onChange={(e) => setTemMacaco(e.target.checked)} />
-                  Possui Macaco
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={temChaveRoda} onChange={(e) => setTemChaveRoda(e.target.checked)} />
-                  Chave de Roda
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={temManualChaveReserva} onChange={(e) => setTemManualChaveReserva(e.target.checked)} />
-                  Manual / Chave Reserva
-                </label>
-              </div>
-            </div>
+              </>
+            )}
 
             {/* Avarias e Pertences */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -619,7 +876,7 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
             style={{
               width: '100%',
               maxWidth: '460px',
-              background: '#0f172a',
+              background: 'var(--bg-surface)',
               border: '1px solid rgba(56, 189, 248, 0.2)',
               borderRadius: 'var(--radius-lg)',
               padding: '24px',
@@ -733,7 +990,7 @@ export const NovoAtendimentoModal: React.FC<NovoAtendimentoModalProps> = ({ onCl
             style={{
               width: '100%',
               maxWidth: '460px',
-              background: '#0f172a',
+              background: 'var(--bg-surface)',
               border: '1px solid rgba(56, 189, 248, 0.2)',
               borderRadius: 'var(--radius-lg)',
               padding: '24px',

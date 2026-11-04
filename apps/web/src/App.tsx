@@ -33,6 +33,7 @@ import { LoginModal } from './components/LoginModal';
 import { apiRequest, clearStoredToken } from './api';
 import { UserTenantContext, Colaborador, RegistroAuditoria } from './types';
 import { DemoPlanProvider, useDemoPlan } from './context/DemoPlanContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 const AppContent: React.FC = () => {
   const [context, setContext] = useState<UserTenantContext | null>(null);
@@ -466,8 +467,10 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <DemoPlanProvider>
-      <AppContent />
-    </DemoPlanProvider>
+    <ThemeProvider>
+      <DemoPlanProvider>
+        <AppContent />
+      </DemoPlanProvider>
+    </ThemeProvider>
   );
 };

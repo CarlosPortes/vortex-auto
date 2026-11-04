@@ -25,7 +25,7 @@ export async function osRoutes(app: FastifyInstance) {
    */
   app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
     const tenant = request.tenant!;
-    const { status, q } = request.query as { status?: string; q?: string };
+    const { status, q, clienteId } = request.query as { status?: string; q?: string; clienteId?: string };
 
     const where: any = {
       empresaId: tenant.empresaId,
@@ -35,12 +35,39 @@ export async function osRoutes(app: FastifyInstance) {
       where.status = status;
     }
 
-    if (q) {
+    if (clienteId && clienteId !== 'TODOS') {
+      where.atendimento = {
+        ...(where.atendimento || {}),
+        clienteId,
+      };
+    }
+
+    if (q && q.trim()) {
+      const termo = q.trim();
       where.OR = [
-        { codigoFormatado: { contains: q, mode: 'insensitive' } },
-        { atendimento: { codigoFormatado: { contains: q, mode: 'insensitive' } } },
-        { atendimento: { veiculo: { placa: { contains: q, mode: 'insensitive' } } } },
-        { atendimento: { cliente: { nomeRazao: { contains: q, mode: 'insensitive' } } } },
+        { codigoFormatado: { contains: termo, mode: 'insensitive' } },
+        { observacoesTecnicas: { contains: termo, mode: 'insensitive' } },
+        { atendimento: { codigoFormatado: { contains: termo, mode: 'insensitive' } } },
+        { atendimento: { queixaPrincipal: { contains: termo, mode: 'insensitive' } } },
+        { atendimento: { veiculo: { placa: { contains: termo, mode: 'insensitive' } } } },
+        { atendimento: { veiculo: { modelo: { contains: termo, mode: 'insensitive' } } } },
+        { atendimento: { veiculo: { marca: { contains: termo, mode: 'insensitive' } } } },
+        { atendimento: { cliente: { nomeRazao: { contains: termo, mode: 'insensitive' } } } },
+        { atendimento: { cliente: { cpfCnpj: { contains: termo, mode: 'insensitive' } } } },
+        { atividades: { some: { descricao: { contains: termo, mode: 'insensitive' } } } },
+        {
+          atendimento: {
+            orcamento: {
+              versoes: {
+                some: {
+                  itens: {
+                    some: { descricao: { contains: termo, mode: 'insensitive' } },
+                  },
+                },
+              },
+            },
+          },
+        },
       ];
     }
 
@@ -56,6 +83,15 @@ export async function osRoutes(app: FastifyInstance) {
             queixaPrincipal: true,
             cliente: { select: { id: true, nomeRazao: true, telefone: true } },
             veiculo: { select: { id: true, placa: true, modelo: true, marca: true } },
+            cobranca: {
+              select: {
+                id: true,
+                codigoFormatado: true,
+                status: true,
+                valorLiquido: true,
+                valorRecebido: true,
+              },
+            },
           },
         },
         atividades: {
@@ -817,4 +853,150 @@ export async function osRoutes(app: FastifyInstance) {
       });
     }
   );
+
+  /**
+   * POST /api/os/:id/adicionar-servico
+   * Adiciona um serviço (do catálogo ou avulso) ou peça diretamente na OS,
+   * criando a atividade técnica correspondente e sincronizando o valor no orçamento do atendimento
+   * para permitir faturamento direto e busca por serviço executado.
+   */
+  app.post('/:id/adicionar-servico', async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenant = request.tenant!;
+    const { id } = request.params as { id: string };
+    const {
+      tipo = 'SERVICO',
+      descricao,
+      quantidade = 1,
+      valorUnitario = 0,
+      tempoEstimadoMinutos = 30,
+      criarAtividade = true,
+    } = request.body as {
+      tipo?: 'SERVICO' | 'PECA';
+      descricao: string;
+      quantidade?: number;
+      valorUnitario?: number;
+      tempoEstimadoMinutos?: number;
+      criarAtividade?: boolean;
+    };
+
+    if (!descricao || !descricao.trim()) {
+      return reply.status(400).send({ sucesso: false, mensagem: 'Informe a descrição do serviço ou item.' });
+    }
+
+    const os = await prisma.ordemServico.findFirst({
+      where: { id, empresaId: tenant.empresaId },
+      include: {
+        atendimento: {
+          include: {
+            orcamento: {
+              include: {
+                versoes: {
+                  orderBy: { numeroVersao: 'desc' },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!os) {
+      return reply.status(404).send({ sucesso: false, mensagem: 'Ordem de Serviço não encontrada.' });
+    }
+
+    const qtdNum = Number(quantidade) || 1;
+    const valUnitNum = Number(valorUnitario) || 0;
+    const subtotal = qtdNum * valUnitNum;
+
+    const resultado = await prisma.$transaction(async (tx) => {
+      // 1. Garantir que exista Orcamento e VersaoOrcamento no Atendimento para suportar faturamento imediato
+      let orcamento = os.atendimento.orcamento;
+      if (!orcamento) {
+        orcamento = await tx.orcamento.create({
+          data: {
+            empresaId: tenant.empresaId,
+            atendimentoId: os.atendimentoId,
+          },
+          include: { versoes: true },
+        });
+      }
+
+      let versao = orcamento.versoes?.[0];
+      if (!versao) {
+        versao = await tx.versaoOrcamento.create({
+          data: {
+            empresaId: tenant.empresaId,
+            orcamentoId: orcamento.id,
+            numeroVersao: 1,
+            status: 'APROVADA_TOTAL',
+            validadeDias: 10,
+            observacoesComerciais: `Gerado automaticamente via Ordem de Serviço ${os.codigoFormatado}`,
+            valorTotalPecas: 0,
+            valorTotalServicos: 0,
+            valorDescontoGeral: 0,
+            valorTotalFinal: 0,
+          },
+        });
+      }
+
+      // 2. Criar ItemOrcamento aprovado
+      const itemOrc = await tx.itemOrcamento.create({
+        data: {
+          empresaId: tenant.empresaId,
+          versaoOrcamentoId: versao.id,
+          tipo,
+          descricao: descricao.trim(),
+          quantidade: qtdNum,
+          unidadeMedida: tipo === 'SERVICO' ? 'SRV' : 'UN',
+          valorUnitario: valUnitNum,
+          valorDesconto: 0,
+          valorTotal: subtotal,
+          decisao: 'APROVADO',
+        },
+      });
+
+      // 3. Atualizar totais da VersaoOrcamento
+      const novoTotalPecas =
+        Number(versao.valorTotalPecas) + (tipo === 'PECA' ? subtotal : 0);
+      const novoTotalServicos =
+        Number(versao.valorTotalServicos) + (tipo === 'SERVICO' ? subtotal : 0);
+      const novoTotalFinal =
+        novoTotalPecas + novoTotalServicos - Number(versao.valorDescontoGeral);
+
+      await tx.versaoOrcamento.update({
+        where: { id: versao.id },
+        data: {
+          valorTotalPecas: novoTotalPecas,
+          valorTotalServicos: novoTotalServicos,
+          valorTotalFinal: Math.max(0, novoTotalFinal),
+          status: 'APROVADA_TOTAL',
+        },
+      });
+
+      // 4. Se for SERVICO (ou criarAtividade=true), adicionar também como AtividadeOS para rastreabilidade e busca
+      let atividadeCriada = null;
+      if (tipo === 'SERVICO' || criarAtividade) {
+        atividadeCriada = await tx.atividadeOS.create({
+          data: {
+            empresaId: tenant.empresaId,
+            ordemServicoId: os.id,
+            itemOrcamentoId: itemOrc.id,
+            descricao: descricao.trim(),
+            status: StatusAtividade.PENDENTE,
+            mecanicoId: os.responsavelMecanicoId || tenant.usuarioId,
+            tempoEstimadoMinutos: Number(tempoEstimadoMinutos) || 30,
+          },
+        });
+      }
+
+      return { itemOrc, atividadeCriada };
+    });
+
+    return reply.status(201).send({
+      sucesso: true,
+      mensagem: `${tipo === 'SERVICO' ? 'Serviço' : 'Peça'} adicionado(a) à OS com sucesso!`,
+      dados: resultado,
+    });
+  });
 }

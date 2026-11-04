@@ -328,11 +328,11 @@ export const AtendimentosKanban: React.FC<AtendimentosKanbanProps> = ({
           display: 'flex',
           flexDirection: 'column',
           gap: '6px',
-          background: 'rgba(15, 23, 42, 0.55)',
+          background: 'var(--bg-card)',
           padding: '8px 14px',
           borderRadius: 'var(--radius-sm)',
           border: '1px solid var(--border-subtle)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          boxShadow: 'var(--shadow-card)',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -393,21 +393,21 @@ export const AtendimentosKanban: React.FC<AtendimentosKanbanProps> = ({
               onDrop={(e) => handleDrop(e, col)}
               className="kanban-column"
               style={{
-                background: isOver ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.65)',
+                background: isOver ? 'var(--bg-card-hover)' : 'var(--bg-kanban-col)',
                 border: isOver ? `2px dashed ${col.cor}` : `1px solid ${col.corBorda}`,
                 borderRadius: 'var(--radius-md)',
                 display: 'flex',
                 flexDirection: 'column',
                 minHeight: '600px',
                 transition: 'all 0.2s ease',
-                boxShadow: isOver ? `0 0 24px ${col.corBg}` : '0 4px 16px rgba(0,0,0,0.25)',
+                boxShadow: isOver ? `0 0 24px ${col.corBg}` : 'var(--shadow-card)',
               }}
             >
               {/* Header da Coluna */}
               <div
                 style={{
                   padding: '16px 14px',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
+                  borderBottom: '1px solid var(--border-subtle)',
                   background: col.corBg,
                   borderTopLeftRadius: 'var(--radius-md)',
                   borderTopRightRadius: 'var(--radius-md)',
@@ -419,7 +419,7 @@ export const AtendimentosKanban: React.FC<AtendimentosKanbanProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div
                     style={{
-                      background: 'rgba(255, 255, 255, 0.05)',
+                      background: 'var(--bg-subtle)',
                       padding: '6px',
                       borderRadius: '8px',
                       display: 'flex',
@@ -514,10 +514,10 @@ export const AtendimentosKanban: React.FC<AtendimentosKanbanProps> = ({
                         onDragEnd={handleDragEnd}
                         className="kanban-card"
                         style={{
-                          background: 'rgba(30, 41, 59, 0.85)',
+                          background: 'var(--bg-kanban-card)',
                           border: isDraggingThis
                             ? `2px solid ${col.cor}`
-                            : '1px solid rgba(255, 255, 255, 0.09)',
+                            : '1px solid var(--border-subtle)',
                           borderRadius: 'var(--radius-sm)',
                           padding: '14px',
                           display: 'flex',
@@ -527,7 +527,7 @@ export const AtendimentosKanban: React.FC<AtendimentosKanbanProps> = ({
                           opacity: isDraggingThis ? 0.45 : 1,
                           transform: isDraggingThis ? 'scale(0.97)' : 'none',
                           transition: 'all 0.18s ease',
-                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.28)',
+                          boxShadow: 'var(--shadow-card)',
                         }}
                       >
                         {/* Top: Código do Atendimento e Placa Padrão Mercosul */}
@@ -617,7 +617,7 @@ export const AtendimentosKanban: React.FC<AtendimentosKanbanProps> = ({
                         {/* Queixa Resumida */}
                         <div
                           style={{
-                            background: 'rgba(0, 0, 0, 0.22)',
+                            background: 'var(--bg-subtle)',
                             padding: '6px 8px',
                             borderRadius: '4px',
                             fontSize: '0.74rem',
@@ -639,7 +639,7 @@ export const AtendimentosKanban: React.FC<AtendimentosKanbanProps> = ({
                             <span
                               style={{
                                 fontSize: '0.68rem',
-                                background: 'rgba(255, 255, 255, 0.05)',
+                                background: 'var(--bg-subtle)',
                                 color: 'var(--text-dim)',
                                 padding: '2px 6px',
                                 borderRadius: '4px',

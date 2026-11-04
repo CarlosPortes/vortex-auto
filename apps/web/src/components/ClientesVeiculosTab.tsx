@@ -296,7 +296,7 @@ export const ClientesVeiculosTab: React.FC = () => {
           zIndex: 1000,
           padding: '20px',
         }}>
-          <div className="glass-panel" style={{ width: '500px', background: '#0f172a', padding: '28px' }}>
+          <div className="glass-panel" style={{ width: '500px', background: 'var(--bg-surface)', padding: '28px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Cadastrar Novo Cliente (HU-006)</h3>
               <button onClick={() => setModalClienteAberto(false)} className="btn btn-secondary" style={{ padding: '6px' }}>
@@ -424,7 +424,7 @@ export const ClientesVeiculosTab: React.FC = () => {
           zIndex: 1000,
           padding: '20px',
         }}>
-          <div className="glass-panel" style={{ width: '480px', background: '#0f172a', padding: '28px' }}>
+          <div className="glass-panel" style={{ width: '480px', background: 'var(--bg-surface)', padding: '28px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Cadastrar Veículo (HU-007)</h3>
               <button onClick={() => setModalVeiculoAberto(false)} className="btn btn-secondary" style={{ padding: '6px' }}>

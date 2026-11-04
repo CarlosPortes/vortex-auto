@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Wrench, AlertCircle, ArrowRight } from 'lucide-react';
 import { apiRequest, setStoredToken } from '../api';
+import { ThemeSelector } from './ThemeSelector';
 
 interface LoginModalProps {
   onLoginSuccess: () => void;
@@ -83,19 +84,25 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLoginSuccess }) => {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '20px',
+      position: 'relative',
     }}>
-      <div className="glass-panel" style={{ width: '100%', maxWidth: '460px', padding: '36px', background: '#0b1120' }}>
+      {/* Seletor de Temas no canto superior direito da tela de Login */}
+      <div style={{ position: 'fixed', top: '20px', right: '24px', zIndex: 100 }}>
+        <ThemeSelector />
+      </div>
+
+      <div className="glass-panel" style={{ width: '100%', maxWidth: '460px', padding: '36px', background: 'var(--bg-surface)' }}>
         {/* Brand Header */}
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div style={{
             width: '54px',
             height: '54px',
             borderRadius: '16px',
-            background: 'linear-gradient(135deg, #0ea5e9, #2563eb)',
+            background: 'linear-gradient(135deg, var(--primary), #2563eb)',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 0 25px rgba(14, 165, 233, 0.45)',
+            boxShadow: '0 0 25px var(--primary-glow)',
             marginBottom: '14px',
           }}>
             <Wrench size={28} color="#ffffff" />
@@ -111,10 +118,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLoginSuccess }) => {
         {/* Tabs */}
         <div style={{
           display: 'flex',
-          background: 'rgba(255,255,255,0.04)',
+          background: 'var(--bg-subtle)',
           padding: '4px',
           borderRadius: 'var(--radius-sm)',
           marginBottom: '24px',
+          border: '1px solid var(--border-subtle)',
         }}>
           <button
             type="button"
@@ -124,8 +132,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLoginSuccess }) => {
               padding: '8px',
               border: 'none',
               borderRadius: '6px',
-              background: modo === 'LOGIN' ? 'rgba(14, 165, 233, 0.2)' : 'transparent',
-              color: modo === 'LOGIN' ? '#38bdf8' : 'var(--text-muted)',
+              background: modo === 'LOGIN' ? 'var(--primary-glow)' : 'transparent',
+              color: modo === 'LOGIN' ? 'var(--primary)' : 'var(--text-muted)',
               fontWeight: 600,
               cursor: 'pointer',
               fontSize: '0.86rem',
@@ -142,8 +150,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLoginSuccess }) => {
               padding: '8px',
               border: 'none',
               borderRadius: '6px',
-              background: modo === 'CADASTRO' ? 'rgba(14, 165, 233, 0.2)' : 'transparent',
-              color: modo === 'CADASTRO' ? '#38bdf8' : 'var(--text-muted)',
+              background: modo === 'CADASTRO' ? 'var(--primary-glow)' : 'transparent',
+              color: modo === 'CADASTRO' ? 'var(--primary)' : 'var(--text-muted)',
               fontWeight: 600,
               cursor: 'pointer',
               fontSize: '0.86rem',
