@@ -11,35 +11,37 @@ datasource db {
 // DOC-001, DOC-002 e DOC-008: Organização, Tenant e Unidade
 // -------------------------------------------------------------
 model Empresa {
-  id           String   @id @default(uuid())
-  razaoSocial  String   @map("razao_social")
-  nomeFantasia String?  @map("nome_fantasia")
-  cnpj         String   @unique
-  telefone     String
-  cidade       String
-  uf           String   @db.VarChar(2)
-  ativo        Boolean  @default(true)
-  criadoEm     DateTime @default(now()) @map("criado_em")
-  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  id              String   @id @default(uuid())
+  razaoSocial     String   @map("razao_social")
+  nomeFantasia    String?  @map("nome_fantasia")
+  cnpj            String   @unique
+  telefone        String
+  cidade          String
+  uf              String   @db.VarChar(2)
+  planoAssinatura String   @default("BASICO") @map("plano_assinatura") // BASICO, INTERMEDIARIO, AVANCADO
+  comFotos        Boolean  @default(false) @map("com_fotos")
+  ativo           Boolean  @default(true)
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
 
-  unidades         Unidade[]
-  vinculos         VinculoUsuarioEmpresa[]
-  auditorias       RegistroAuditoria[]
-  idempotencias    ChaveIdempotencia[]
-  clientes         Cliente[]
-  veiculos         Veiculo[]
-  vinculosCliVei   VinculoClienteVeiculo[]
-  atendimentos     Atendimento[]
-  diagnosticos     Diagnostico[]
-  orcamentos       Orcamento[]
-  versoesOrcamento VersaoOrcamento[]
-  itensOrcamento   ItemOrcamento[]
-  decisoesComerc   DecisaoComercial[]
-  produtos         Produto[]
-  movimentosEst    MovimentoEstoque[]
-  reservasEst      ReservaEstoque[]
-  ordensServico    OrdemServico[]
-  atividadesOS     AtividadeOS[]
+  unidades           Unidade[]
+  vinculos           VinculoUsuarioEmpresa[]
+  auditorias         RegistroAuditoria[]
+  idempotencias      ChaveIdempotencia[]
+  clientes           Cliente[]
+  veiculos           Veiculo[]
+  vinculosCliVei     VinculoClienteVeiculo[]
+  atendimentos       Atendimento[]
+  diagnosticos       Diagnostico[]
+  orcamentos         Orcamento[]
+  versoesOrcamento   VersaoOrcamento[]
+  itensOrcamento     ItemOrcamento[]
+  decisoesComerc     DecisaoComercial[]
+  produtos           Produto[]
+  movimentosEst      MovimentoEstoque[]
+  reservasEst        ReservaEstoque[]
+  ordensServico      OrdemServico[]
+  atividadesOS       AtividadeOS[]
   inspecoesQualidade InspecaoQualidade[]
   cobrancas          Cobranca[]
   parcelasCobranca   ParcelaCobranca[]
@@ -50,6 +52,8 @@ model Empresa {
   servicosTerceiros  ServicoTerceiro[]
   compras            Compra[]
   vendasBalcao       VendaBalcao[]
+  servicosCatalogo   ServicoCatalogo[]
+  fotosOS            FotoOS[]
 
   @@map("empresas")
 }
@@ -585,6 +589,7 @@ model OrdemServico {
   responsavelMecanico Usuario?         @relation("MecanicoResponsavelOS", fields: [responsavelMecanicoId], references: [id], onDelete: SetNull)
   atividades          AtividadeOS[]
   reservasEstoque     ReservaEstoque[]
+  fotos               FotoOS[]
 
   @@unique([empresaId, numeroOS])
   @@index([empresaId, status])
@@ -904,4 +909,44 @@ model ItemVendaBalcao {
   @@index([vendaId, produtoId])
   @@map("itens_venda_balcao")
 }
+
+// -------------------------------------------------------------
+// Catálogo Padronizado de Serviços da Oficina & Fotos de OS
+// -------------------------------------------------------------
+model ServicoCatalogo {
+  id                   String   @id @default(uuid())
+  empresaId            String   @map("empresa_id")
+  codigo               String
+  nome                 String
+  categoria            String   @default("MECANICA_GERAL")
+  valorSugerido        Decimal  @default(0.0) @map("valor_sugerido") @db.Decimal(12, 2)
+  tempoEstimadoMinutos Int      @default(30) @map("tempo_estimado_minutos")
+  descricaoPadrao      String?  @map("descricao_padrao")
+  ativo                Boolean  @default(true)
+  criadoEm             DateTime @default(now()) @map("criado_em")
+  atualizadoEm         DateTime @updatedAt @map("atualizado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, codigo])
+  @@index([empresaId, categoria])
+  @@map("servicos_catalogo")
+}
+
+model FotoOS {
+  id             String   @id @default(uuid())
+  empresaId      String   @map("empresa_id")
+  ordemServicoId String   @map("ordem_servico_id")
+  etapa          String   @default("ANTES") // ANTES, DURANTE, DEPOIS
+  legenda        String
+  url            String   @db.Text
+  criadoEm       DateTime @default(now()) @map("criado_em")
+
+  empresa      Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  ordemServico OrdemServico @relation(fields: [ordemServicoId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, ordemServicoId])
+  @@map("fotos_os")
+}
+
 

@@ -31,7 +31,7 @@ export async function tenantMiddleware(request: FastifyRequest, reply: FastifyRe
   }
 
   // Validação estrita no banco com defesa em profundidade (DOC-006, DOC-012)
-  const vinculo = await prisma.vinculoUsuarioEmpresa.findUnique({
+  let vinculo = await prisma.vinculoUsuarioEmpresa.findUnique({
     where: {
       usuarioId_empresaId: {
         usuarioId: user.usuarioId,
@@ -58,7 +58,87 @@ export async function tenantMiddleware(request: FastifyRequest, reply: FastifyRe
     },
   });
 
-  if (!vinculo || !vinculo.ativo || !vinculo.empresa.ativo) {
+  // Se não houver vínculo direto, verificar se o usuário autenticado é SuperAdmin da plataforma SaaS
+  if (!vinculo) {
+    const usuarioAutenticado = await prisma.usuario.findUnique({
+      where: { id: user.usuarioId },
+    });
+
+    if (usuarioAutenticado && usuarioAutenticado.ativo && usuarioAutenticado.superAdmin) {
+      const empresaAlvo = await prisma.empresa.findUnique({
+        where: { id: empresaId },
+        include: { unidades: { where: { ativo: true } } },
+      });
+
+      if (empresaAlvo && empresaAlvo.unidades.length > 0) {
+        const unidadeAlvo =
+          empresaAlvo.unidades.find((u) => u.id === unidadeId) ||
+          empresaAlvo.unidades.find((u) => u.principal) ||
+          empresaAlvo.unidades[0];
+
+        // Cria ou garante vínculo administrativo de suporte para o SuperAdmin
+        const novoVinculo = await prisma.vinculoUsuarioEmpresa.upsert({
+          where: {
+            usuarioId_empresaId: {
+              usuarioId: usuarioAutenticado.id,
+              empresaId: empresaAlvo.id,
+            },
+          },
+          update: { ativo: true, unidadeId: unidadeAlvo.id },
+          create: {
+            usuarioId: usuarioAutenticado.id,
+            empresaId: empresaAlvo.id,
+            unidadeId: unidadeAlvo.id,
+            ativo: true,
+            alcadaDesconto: 100.0,
+          },
+        });
+
+        const perfilAdmin = await prisma.perfil.findUnique({
+          where: { codigo: PerfilAcesso.ADMIN_GERAL },
+        });
+        if (perfilAdmin) {
+          await prisma.vinculoPerfil.upsert({
+            where: {
+              vinculoId_perfilId: {
+                vinculoId: novoVinculo.id,
+                perfilId: perfilAdmin.id,
+              },
+            },
+            update: {},
+            create: {
+              vinculoId: novoVinculo.id,
+              perfilId: perfilAdmin.id,
+            },
+          });
+        }
+
+        vinculo = await prisma.vinculoUsuarioEmpresa.findUnique({
+          where: { id: novoVinculo.id },
+          include: {
+            empresa: true,
+            unidade: true,
+            usuario: true,
+            perfis: {
+              include: {
+                perfil: {
+                  include: {
+                    permissoes: {
+                      include: {
+                        permissao: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+    }
+  }
+
+  if (!vinculo || !vinculo.ativo || (!vinculo.empresa.ativo && !vinculo.usuario.superAdmin)) {
     return reply.status(403).send({
       sucesso: false,
       mensagem: 'Acesso negado: vínculo inativo ou não autorizado para esta empresa.',
@@ -92,6 +172,11 @@ export async function tenantMiddleware(request: FastifyRequest, reply: FastifyRe
     }
   }
 
+  const planoRaw = (vinculo.empresa as any).planoAssinatura || 'BASICO';
+  const planoAssinatura = (
+    ['BASICO', 'INTERMEDIARIO', 'AVANCADO'].includes(planoRaw) ? planoRaw : 'BASICO'
+  ) as 'BASICO' | 'INTERMEDIARIO' | 'AVANCADO';
+
   request.tenant = {
     empresaId,
     unidadeId: unidadeValida.id,
@@ -102,6 +187,9 @@ export async function tenantMiddleware(request: FastifyRequest, reply: FastifyRe
     nomeUsuario: vinculo.usuario.nome,
     emailUsuario: vinculo.usuario.email,
     razaoSocialEmpresa: vinculo.empresa.razaoSocial,
+    superAdmin: Boolean(vinculo.usuario.superAdmin),
+    planoAssinatura,
+    comFotos: Boolean((vinculo.empresa as any).comFotos),
   };
 }
 

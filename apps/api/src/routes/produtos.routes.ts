@@ -704,10 +704,33 @@ export async function produtosRoutes(app: FastifyInstance) {
         valorTotalVenda += item.quantidade * item.valorUnitario;
       }
 
-      const codigoVenda = `VB-${Date.now().toString().slice(-6)}`;
+      const anoVenda = new Date().getFullYear();
 
-      // Executar transação de baixa atômica
+      // Executar transação de baixa atômica e criação do registro VendaBalcao
       const resultado = await prisma.$transaction(async (tx) => {
+        const ultimaVenda = await tx.vendaBalcao.findFirst({
+          where: { empresaId: tenant.empresaId },
+          orderBy: { numeroSequencial: 'desc' },
+        });
+        const proximoNumero = (ultimaVenda?.numeroSequencial || 0) + 1;
+        const codigoVenda = `VB-${anoVenda}-${String(proximoNumero).padStart(4, '0')}`;
+
+        const vendaCriada = await tx.vendaBalcao.create({
+          data: {
+            empresaId: tenant.empresaId,
+            usuarioId: tenant.usuarioId,
+            codigoVenda,
+            numeroSequencial: proximoNumero,
+            clienteNome: clienteNome || 'Consumidor Final',
+            formaPagamento,
+            subtotal: valorTotalVenda,
+            desconto: 0,
+            valorTotal: valorTotalVenda,
+            status: 'CONCLUIDA',
+            observacoes: observacoes || 'Venda rápida via Terminal WMS (Leitor de Código de Barras)',
+          },
+        });
+
         const movimentos = [];
 
         for (const item of itens) {
@@ -715,6 +738,18 @@ export async function produtosRoutes(app: FastifyInstance) {
           const saldoAnt = Number(prod.saldoFisico);
           const saldoNovo = saldoAnt - item.quantidade;
           const saldoRes = Number(prod.saldoReservado);
+          const custoUnit = Number(prod.custoMedio) > 0 ? Number(prod.custoMedio) : Number(prod.precoCusto);
+
+          await tx.itemVendaBalcao.create({
+            data: {
+              vendaId: vendaCriada.id,
+              produtoId: prod.id,
+              quantidade: item.quantidade,
+              precoUnitario: item.valorUnitario,
+              custoUnitario: custoUnit,
+              subtotal: item.quantidade * item.valorUnitario,
+            },
+          });
 
           await tx.produto.update({
             where: { id: prod.id },
@@ -743,8 +778,10 @@ export async function produtosRoutes(app: FastifyInstance) {
           movimentos.push(mov);
         }
 
-        return { movimentos, codigoVenda, valorTotalVenda };
+        return { movimentos, codigoVenda, valorTotalVenda, vendaId: vendaCriada.id };
       });
+
+      const codigoVenda = resultado.codigoVenda;
 
       await AuditoriaService.registrar({
         empresaId: tenant.empresaId,

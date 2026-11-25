@@ -92,16 +92,51 @@ export async function osRoutes(app: FastifyInstance) {
                 valorRecebido: true,
               },
             },
+            orcamento: {
+              select: {
+                versoes: {
+                  orderBy: { numeroVersao: 'desc' },
+                  take: 1,
+                  select: {
+                    id: true,
+                    valorTotalPecas: true,
+                    valorTotalServicos: true,
+                    valorTotalFinal: true,
+                    itens: {
+                      select: {
+                        id: true,
+                        tipo: true,
+                        descricao: true,
+                        quantidade: true,
+                        valorUnitario: true,
+                        valorTotal: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
         atividades: {
           select: {
             id: true,
+            itemOrcamentoId: true,
             descricao: true,
             status: true,
             tempoEstimadoMinutos: true,
             tempoRealizadoMinutos: true,
             mecanico: { select: { id: true, nome: true } },
+          },
+          orderBy: { criadoEm: 'asc' },
+        },
+        fotos: {
+          select: {
+            id: true,
+            etapa: true,
+            legenda: true,
+            url: true,
+            criadoEm: true,
           },
           orderBy: { criadoEm: 'asc' },
         },
@@ -113,6 +148,7 @@ export async function osRoutes(app: FastifyInstance) {
       const totalAtividades = os.atividades.length;
       const concluidas = os.atividades.filter((a) => a.status === StatusAtividade.CONCLUIDA).length;
       const progressoPercent = totalAtividades > 0 ? Math.round((concluidas / totalAtividades) * 100) : 0;
+      const versaoOrc = (os.atendimento as any).orcamento?.versoes?.[0];
 
       return {
         id: os.id,
@@ -124,12 +160,34 @@ export async function osRoutes(app: FastifyInstance) {
         observacoesTecnicas: os.observacoesTecnicas,
         mecanicoResponsavel: os.responsavelMecanico ? os.responsavelMecanico.nome : null,
         atendimento: os.atendimento,
+        orcamentoResumo: versaoOrc
+          ? {
+              valorTotalPecas: Number(versaoOrc.valorTotalPecas),
+              valorTotalServicos: Number(versaoOrc.valorTotalServicos),
+              valorTotalFinal: Number(versaoOrc.valorTotalFinal),
+              itens: versaoOrc.itens.map((it: any) => ({
+                id: it.id,
+                tipo: it.tipo,
+                descricao: it.descricao,
+                quantidade: Number(it.quantidade),
+                valorUnitario: Number(it.valorUnitario),
+                valorTotal: Number(it.valorTotal),
+              })),
+            }
+          : null,
         progresso: {
           totalAtividades,
           concluidas,
           progressoPercent,
         },
         atividades: os.atividades,
+        fotos: (os as any).fotos.map((f: any) => ({
+          id: f.id,
+          etapa: f.etapa,
+          legenda: f.legenda,
+          url: f.url,
+          dataHora: f.criadoEm,
+        })),
         criadoEm: os.criadoEm,
       };
     });
@@ -997,6 +1055,370 @@ export async function osRoutes(app: FastifyInstance) {
       sucesso: true,
       mensagem: `${tipo === 'SERVICO' ? 'Serviço' : 'Peça'} adicionado(a) à OS com sucesso!`,
       dados: resultado,
+    });
+  });
+
+  /**
+   * DELETE /api/os/:id/atividades/:atividadeId
+   * Remove uma atividade/serviço lançado por engano na OS e recalcula o orçamento vinculado.
+   */
+  app.delete('/:id/atividades/:atividadeId', async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenant = request.tenant!;
+    const { id, atividadeId } = request.params as { id: string; atividadeId: string };
+
+    const atividade = await prisma.atividadeOS.findFirst({
+      where: { id: atividadeId, ordemServicoId: id, empresaId: tenant.empresaId },
+    });
+
+    if (!atividade) {
+      return reply.status(404).send({ sucesso: false, mensagem: 'Atividade não encontrada nesta OS.' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.atividadeOS.delete({ where: { id: atividade.id } });
+
+      if (atividade.itemOrcamentoId) {
+        const itemOrc = await tx.itemOrcamento.findFirst({
+          where: { id: atividade.itemOrcamentoId, empresaId: tenant.empresaId },
+        });
+        if (itemOrc) {
+          await tx.itemOrcamento.delete({ where: { id: itemOrc.id } });
+
+          const itensRestantes = await tx.itemOrcamento.findMany({
+            where: { versaoOrcamentoId: itemOrc.versaoOrcamentoId, empresaId: tenant.empresaId },
+          });
+          let pecas = 0;
+          let servicos = 0;
+          for (const it of itensRestantes) {
+            if (it.tipo === 'PECA') pecas += Number(it.valorTotal);
+            else servicos += Number(it.valorTotal);
+          }
+          await tx.versaoOrcamento.update({
+            where: { id: itemOrc.versaoOrcamentoId },
+            data: {
+              valorTotalPecas: pecas,
+              valorTotalServicos: servicos,
+              valorTotalFinal: pecas + servicos,
+            },
+          });
+        }
+      }
+    });
+
+    return reply.send({
+      sucesso: true,
+      mensagem: 'Atividade/serviço removido da Ordem de Serviço com sucesso!',
+    });
+  });
+
+  /**
+   * GET /api/os/catalogo-servicos
+   * Retorna o Catálogo Padronizado de Serviços da oficina persistido no PostgreSQL.
+   * Na primeira consulta da oficina, popula automaticamente o catálogo inicial com 12 serviços.
+   */
+  app.get('/catalogo-servicos', async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenant = request.tenant!;
+
+    let servicos = await prisma.servicoCatalogo.findMany({
+      where: { empresaId: tenant.empresaId, ativo: true },
+      orderBy: [{ categoria: 'asc' }, { nome: 'asc' }],
+    });
+
+    if (servicos.length === 0) {
+      const servicosIniciais = [
+        {
+          codigo: 'SRV-SOL-001',
+          nome: 'Solda em Ferramenta Agrícola / Jardinagem (Rastelo, Enxada, Foice, Pá)',
+          categoria: 'SOLDA_SERRALHERIA',
+          valorSugerido: 45.0,
+          tempoEstimadoMinutos: 30,
+          descricaoPadrao: 'Limpeza do ponto de trinca, alinhamento, cordão de solda reforçado e acabamento com esmerilhadeira.',
+        },
+        {
+          codigo: 'SRV-SOL-002',
+          nome: 'Solda Estrutural MIG / Eletrodo em Peça Metálica ou Suporte',
+          categoria: 'SOLDA_SERRALHERIA',
+          valorSugerido: 85.0,
+          tempoEstimadoMinutos: 45,
+          descricaoPadrao: 'Solda estrutural de alta penetração com reforço metálico e acabamento.',
+        },
+        {
+          codigo: 'SRV-SOL-003',
+          nome: 'Solda em Escapamento / Silencioso / Catalisador',
+          categoria: 'SOLDA_SERRALHERIA',
+          valorSugerido: 90.0,
+          tempoEstimadoMinutos: 45,
+          descricaoPadrao: 'Remoção de vazamento, solda em tubulação de exaustão e verificação de coxins.',
+        },
+        {
+          codigo: 'SRV-BAN-001',
+          nome: 'Afiação, Desempeno e Ajuste de Ferramenta de Corte (Foice, Facão, Machado, Lâmina)',
+          categoria: 'FERRAMENTAS_BANCADA',
+          valorSugerido: 35.0,
+          tempoEstimadoMinutos: 25,
+          descricaoPadrao: 'Desbaste técnico, afiação de fio de corte e balanceamento de bancada.',
+        },
+        {
+          codigo: 'SRV-BAN-002',
+          nome: 'Substituição / Encabamento e Fixação de Cabo de Ferramenta',
+          categoria: 'FERRAMENTAS_BANCADA',
+          valorSugerido: 30.0,
+          tempoEstimadoMinutos: 20,
+          descricaoPadrao: 'Ajuste de olhal, encabamento firme com cunha de trava e acabamento.',
+        },
+        {
+          codigo: 'SRV-BAN-003',
+          nome: 'Reforma / Solda de Carrinho de Mão, Betoneira ou Implemento de Trabalho',
+          categoria: 'FERRAMENTAS_BANCADA',
+          valorSugerido: 120.0,
+          tempoEstimadoMinutos: 60,
+          descricaoPadrao: 'Recuperação estrutural de caçamba/chassi, eixo e pontos de apoio com solda reforçada.',
+        },
+        {
+          codigo: 'SRV-MEC-001',
+          nome: 'Troca de Óleo do Motor e Filtro Lubrificante',
+          categoria: 'MECANICA_GERAL',
+          valorSugerido: 70.0,
+          tempoEstimadoMinutos: 30,
+          descricaoPadrao: 'Drenagem do óleo usado, substituição do filtro e abastecimento no nível especificado.',
+        },
+        {
+          codigo: 'SRV-MEC-002',
+          nome: 'Revisão Preventiva Completa (Motor, Filtros, Correias e Fluidos)',
+          categoria: 'MECANICA_GERAL',
+          valorSugerido: 250.0,
+          tempoEstimadoMinutos: 120,
+          descricaoPadrao: 'Inspeção de 30 itens, verificação de correias, velas, filtros e vazamentos.',
+        },
+        {
+          codigo: 'SRV-MEC-003',
+          nome: 'Limpeza de Bicos Injetores e Corpo de Borboleta (TBI)',
+          categoria: 'MECANICA_GERAL',
+          valorSugerido: 160.0,
+          tempoEstimadoMinutos: 90,
+          descricaoPadrao: 'Teste de vazão/equalização em ultrassom, troca de reparos e limpeza de TBI.',
+        },
+        {
+          codigo: 'SRV-FRE-001',
+          nome: 'Substituição de Pastilhas e Discos de Freio Dianteiro',
+          categoria: 'FREIOS_SUSPENSAO',
+          valorSugerido: 140.0,
+          tempoEstimadoMinutos: 60,
+          descricaoPadrao: 'Desmontagem das pinças, limpeza de guias, troca de pastilhas/discos e teste de frenagem.',
+        },
+        {
+          codigo: 'SRV-FRE-002',
+          nome: 'Troca de Amortecedores e Kit Batente / Coxim',
+          categoria: 'FREIOS_SUSPENSAO',
+          valorSugerido: 220.0,
+          tempoEstimadoMinutos: 120,
+          descricaoPadrao: 'Substituição do par de amortecedores com encolhedor de molas e verificação de folgas.',
+        },
+        {
+          codigo: 'SRV-ELE-001',
+          nome: 'Diagnóstico Computadorizado com Scanner OBD-II',
+          categoria: 'ELETRICA_DIAGNOSTICO',
+          valorSugerido: 100.0,
+          tempoEstimadoMinutos: 40,
+          descricaoPadrao: 'Leitura de códigos de falha DTC, análise de parâmetros em tempo real e reset.',
+        },
+      ];
+
+      for (const s of servicosIniciais) {
+        await prisma.servicoCatalogo.upsert({
+          where: {
+            empresaId_codigo: {
+              empresaId: tenant.empresaId,
+              codigo: s.codigo,
+            },
+          },
+          update: {},
+          create: {
+            empresaId: tenant.empresaId,
+            codigo: s.codigo,
+            nome: s.nome,
+            categoria: s.categoria,
+            valorSugerido: s.valorSugerido,
+            tempoEstimadoMinutos: s.tempoEstimadoMinutos,
+            descricaoPadrao: s.descricaoPadrao,
+            ativo: true,
+          },
+        });
+      }
+
+      servicos = await prisma.servicoCatalogo.findMany({
+        where: { empresaId: tenant.empresaId, ativo: true },
+        orderBy: [{ categoria: 'asc' }, { nome: 'asc' }],
+      });
+    }
+
+    return reply.send({
+      sucesso: true,
+      dados: servicos.map((s) => ({
+        id: s.id,
+        codigo: s.codigo,
+        nome: s.nome,
+        categoria: s.categoria,
+        valorSugerido: Number(s.valorSugerido),
+        tempoEstimadoMinutos: s.tempoEstimadoMinutos,
+        descricaoPadrao: s.descricaoPadrao,
+      })),
+    });
+  });
+
+  /**
+   * POST /api/os/catalogo-servicos
+   * Cadastra ou atualiza um serviço padronizado no catálogo da oficina no PostgreSQL.
+   */
+  app.post('/catalogo-servicos', async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenant = request.tenant!;
+    const body = request.body as {
+      id?: string;
+      codigo?: string;
+      nome: string;
+      categoria: string;
+      valorSugerido: number;
+      tempoEstimadoMinutos: number;
+      descricaoPadrao?: string;
+    };
+
+    if (!body.nome || !body.nome.trim()) {
+      return reply.status(400).send({ sucesso: false, mensagem: 'Informe o nome do serviço.' });
+    }
+
+    const codigoFormatado =
+      body.codigo && body.codigo.trim()
+        ? body.codigo.trim().toUpperCase()
+        : `SRV-${Date.now().toString().slice(-5)}`;
+
+    const servico = await prisma.servicoCatalogo.upsert({
+      where: {
+        empresaId_codigo: {
+          empresaId: tenant.empresaId,
+          codigo: codigoFormatado,
+        },
+      },
+      update: {
+        nome: body.nome.trim(),
+        categoria: body.categoria || 'MECANICA_GERAL',
+        valorSugerido: Number(body.valorSugerido) || 0,
+        tempoEstimadoMinutos: Number(body.tempoEstimadoMinutos) || 30,
+        descricaoPadrao: body.descricaoPadrao?.trim() || null,
+        ativo: true,
+      },
+      create: {
+        empresaId: tenant.empresaId,
+        codigo: codigoFormatado,
+        nome: body.nome.trim(),
+        categoria: body.categoria || 'MECANICA_GERAL',
+        valorSugerido: Number(body.valorSugerido) || 0,
+        tempoEstimadoMinutos: Number(body.tempoEstimadoMinutos) || 30,
+        descricaoPadrao: body.descricaoPadrao?.trim() || null,
+        ativo: true,
+      },
+    });
+
+    return reply.status(201).send({
+      sucesso: true,
+      mensagem: 'Serviço salvo no catálogo da oficina!',
+      dados: {
+        id: servico.id,
+        codigo: servico.codigo,
+        nome: servico.nome,
+        categoria: servico.categoria,
+        valorSugerido: Number(servico.valorSugerido),
+        tempoEstimadoMinutos: servico.tempoEstimadoMinutos,
+        descricaoPadrao: servico.descricaoPadrao,
+      },
+    });
+  });
+
+  /**
+   * DELETE /api/os/catalogo-servicos/:servicoId
+   * Remove/desativa um serviço do catálogo da oficina.
+   */
+  app.delete('/catalogo-servicos/:servicoId', async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenant = request.tenant!;
+    const { servicoId } = request.params as { servicoId: string };
+
+    await prisma.servicoCatalogo.deleteMany({
+      where: { id: servicoId, empresaId: tenant.empresaId },
+    });
+
+    return reply.send({
+      sucesso: true,
+      mensagem: 'Serviço removido do catálogo.',
+    });
+  });
+
+  /**
+   * POST /api/os/:id/fotos
+   * Salva foto de Antes / Durante / Depois da Ordem de Serviço no PostgreSQL
+   * (sincronizando entre celular do mecânico e computadores da oficina).
+   */
+  app.post('/:id/fotos', async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenant = request.tenant!;
+    const { id } = request.params as { id: string };
+    const { etapa = 'ANTES', legenda, url } = request.body as {
+      etapa?: 'ANTES' | 'DURANTE' | 'DEPOIS';
+      legenda?: string;
+      url: string;
+    };
+
+    if (!url) {
+      return reply.status(400).send({ sucesso: false, mensagem: 'Imagem inválida ou vazia.' });
+    }
+
+    const os = await prisma.ordemServico.findFirst({
+      where: { id, empresaId: tenant.empresaId },
+    });
+
+    if (!os) {
+      return reply.status(404).send({ sucesso: false, mensagem: 'Ordem de Serviço não encontrada.' });
+    }
+
+    const foto = await prisma.fotoOS.create({
+      data: {
+        empresaId: tenant.empresaId,
+        ordemServicoId: os.id,
+        etapa,
+        legenda: legenda?.trim() || `Registro fotográfico (${etapa})`,
+        url,
+      },
+    });
+
+    return reply.status(201).send({
+      sucesso: true,
+      mensagem: `Foto da etapa ${etapa} salva na Ordem de Serviço!`,
+      dados: {
+        id: foto.id,
+        etapa: foto.etapa,
+        legenda: foto.legenda,
+        url: foto.url,
+        dataHora: foto.criadoEm,
+      },
+    });
+  });
+
+  /**
+   * DELETE /api/os/:id/fotos/:fotoId
+   * Remove foto de Antes / Durante / Depois da Ordem de Serviço.
+   */
+  app.delete('/:id/fotos/:fotoId', async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenant = request.tenant!;
+    const { id, fotoId } = request.params as { id: string; fotoId: string };
+
+    await prisma.fotoOS.deleteMany({
+      where: {
+        id: fotoId,
+        ordemServicoId: id,
+        empresaId: tenant.empresaId,
+      },
+    });
+
+    return reply.send({
+      sucesso: true,
+      mensagem: 'Foto removida da Ordem de Serviço.',
     });
   });
 }

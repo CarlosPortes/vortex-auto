@@ -218,10 +218,312 @@ export async function adminRoutes(app: FastifyInstance) {
         take: 50,
       });
 
-      return reply.send({
-        sucesso: true,
-        dados: registros,
+    return reply.send({
+      sucesso: true,
+      dados: registros,
+    });
+  }
+);
+
+  /**
+   * GET /api/admin/oficinas
+   * Painel SuperAdmin SaaS: Lista TODAS as oficinas cadastradas na plataforma,
+   * seus planos ativos, métricas operacionais e responsáveis.
+   */
+  app.get('/oficinas', async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenant = request.tenant!;
+
+    if (!tenant.superAdmin && !tenant.perfis.includes(PerfilAcesso.ADMIN_GERAL)) {
+      return reply.status(403).send({
+        sucesso: false,
+        mensagem: 'Acesso restrito ao Administrador da Plataforma.',
       });
     }
-  );
+
+    const empresas = await prisma.empresa.findMany({
+      include: {
+        unidades: {
+          where: { ativo: true },
+          select: { id: true, nome: true, principal: true },
+        },
+        vinculos: {
+          include: {
+            usuario: {
+              select: { id: true, nome: true, email: true, superAdmin: true },
+            },
+            perfis: {
+              include: { perfil: { select: { codigo: true, nome: true } } },
+            },
+          },
+        },
+        _count: {
+          select: {
+            clientes: true,
+            veiculos: true,
+            atendimentos: true,
+            ordensServico: true,
+            produtos: true,
+            vinculos: true,
+          },
+        },
+      },
+      orderBy: { criadoEm: 'desc' },
+    });
+
+    const dados = empresas.map((emp) => {
+      const unidadePrincipal = emp.unidades.find((u) => u.principal) || emp.unidades[0] || null;
+      // Prioriza exibir o responsável da própria oficina (não o superAdmin global, a menos que seja o único)
+      const vinculoResponsavel =
+        emp.vinculos.find((v) => !v.usuario.superAdmin) || emp.vinculos[0] || null;
+
+      return {
+        id: emp.id,
+        razaoSocial: emp.razaoSocial,
+        nomeFantasia: emp.nomeFantasia || emp.razaoSocial,
+        cnpj: emp.cnpj,
+        telefone: emp.telefone,
+        cidade: emp.cidade,
+        uf: emp.uf,
+        planoAssinatura: ((emp as any).planoAssinatura || 'BASICO') as 'BASICO' | 'INTERMEDIARIO' | 'AVANCADO',
+        comFotos: Boolean((emp as any).comFotos),
+        ativo: emp.ativo,
+        criadoEm: emp.criadoEm,
+        atualizadoEm: emp.atualizadoEm,
+        unidadePrincipalId: unidadePrincipal?.id || null,
+        unidadePrincipalNome: unidadePrincipal?.nome || 'Matriz',
+        responsavel: vinculoResponsavel
+          ? {
+              id: vinculoResponsavel.usuario.id,
+              nome: vinculoResponsavel.usuario.nome,
+              email: vinculoResponsavel.usuario.email,
+            }
+          : null,
+        metricas: {
+          clientes: emp._count.clientes,
+          veiculos: emp._count.veiculos,
+          atendimentos: emp._count.atendimentos,
+          ordensServico: emp._count.ordensServico,
+          produtos: emp._count.produtos,
+          usuarios: emp._count.vinculos,
+        },
+      };
+    });
+
+    return reply.send({
+      sucesso: true,
+      total: dados.length,
+      dados,
+    });
+  });
+
+  /**
+   * PATCH /api/admin/oficinas/:empresaId/plano
+   * Define o Plano Comercial (BASICO, INTERMEDIARIO, AVANCADO), o Add-on de Fotos e o status (ativo/inativo) de qualquer oficina.
+   */
+  app.patch('/oficinas/:empresaId/plano', async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenant = request.tenant!;
+    const { empresaId } = request.params as { empresaId: string };
+    const {
+      planoAssinatura,
+      comFotos,
+      ativo,
+      razaoSocial,
+      nomeFantasia,
+      telefone,
+      cidade,
+      uf,
+    } = request.body as {
+      planoAssinatura?: 'BASICO' | 'INTERMEDIARIO' | 'AVANCADO';
+      comFotos?: boolean;
+      ativo?: boolean;
+      razaoSocial?: string;
+      nomeFantasia?: string;
+      telefone?: string;
+      cidade?: string;
+      uf?: string;
+    };
+
+    if (!tenant.superAdmin && !tenant.perfis.includes(PerfilAcesso.ADMIN_GERAL)) {
+      return reply.status(403).send({
+        sucesso: false,
+        mensagem: 'Permissão insuficiente para alterar plano de oficina.',
+      });
+    }
+
+    const empresa = await prisma.empresa.findUnique({ where: { id: empresaId } });
+    if (!empresa) {
+      return reply.status(404).send({
+        sucesso: false,
+        mensagem: 'Oficina não encontrada.',
+      });
+    }
+
+    const dataUpdate: any = {};
+    if (planoAssinatura && ['BASICO', 'INTERMEDIARIO', 'AVANCADO'].includes(planoAssinatura)) {
+      dataUpdate.planoAssinatura = planoAssinatura;
+    }
+    if (comFotos !== undefined) {
+      dataUpdate.comFotos = Boolean(comFotos);
+    }
+    if (ativo !== undefined) {
+      dataUpdate.ativo = Boolean(ativo);
+    }
+    if (razaoSocial && razaoSocial.trim()) {
+      dataUpdate.razaoSocial = razaoSocial.trim();
+    }
+    if (nomeFantasia !== undefined) {
+      dataUpdate.nomeFantasia = nomeFantasia.trim() || empresa.razaoSocial;
+    }
+    if (telefone && telefone.trim()) {
+      dataUpdate.telefone = telefone.trim();
+    }
+    if (cidade && cidade.trim()) {
+      dataUpdate.cidade = cidade.trim();
+    }
+    if (uf && uf.trim()) {
+      dataUpdate.uf = uf.trim().toUpperCase().slice(0, 2);
+    }
+
+    const atualizada = await prisma.empresa.update({
+      where: { id: empresaId },
+      data: dataUpdate,
+    });
+
+    await AuditoriaService.registrar({
+      empresaId: atualizada.id,
+      usuarioId: tenant.usuarioId,
+      operacao: TipoOperacaoAuditoria.ALTERACAO,
+      entidade: 'Empresa',
+      entidadeId: atualizada.id,
+      detalhes: {
+        acao: 'ATUALIZACAO_PLANO_OFICINA',
+        planoAssinatura: (atualizada as any).planoAssinatura,
+        comFotos: (atualizada as any).comFotos,
+        ativo: atualizada.ativo,
+      },
+      ipOrigem: request.ip,
+      userAgent: request.headers['user-agent'],
+    });
+
+    return reply.send({
+      sucesso: true,
+      mensagem: `Plano da oficina '${atualizada.nomeFantasia || atualizada.razaoSocial}' atualizado com sucesso!`,
+      dados: atualizada,
+    });
+  });
+
+  /**
+   * POST /api/admin/oficinas
+   * Cadastra uma nova oficina piloto/cliente diretamente pelo Painel SuperAdmin já definindo seu Plano e Administrador.
+   */
+  app.post('/oficinas', async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenant = request.tenant!;
+
+    if (!tenant.superAdmin && !tenant.perfis.includes(PerfilAcesso.ADMIN_GERAL)) {
+      return reply.status(403).send({
+        sucesso: false,
+        mensagem: 'Apenas o SuperAdmin pode cadastrar novas oficinas no painel SaaS.',
+      });
+    }
+
+    const body = request.body as {
+      razaoSocial: string;
+      nomeFantasia?: string;
+      cnpj: string;
+      telefone: string;
+      cidade: string;
+      uf: string;
+      planoAssinatura?: 'BASICO' | 'INTERMEDIARIO' | 'AVANCADO';
+      comFotos?: boolean;
+      nomeAdmin: string;
+      emailAdmin: string;
+      senhaAdmin: string;
+    };
+
+    if (!body.razaoSocial || !body.cnpj || !body.nomeAdmin || !body.emailAdmin || !body.senhaAdmin) {
+      return reply.status(400).send({
+        sucesso: false,
+        mensagem: 'Preencha Razão Social, CNPJ e os dados do Administrador da nova oficina.',
+      });
+    }
+
+    const cnpjLimpo = body.cnpj.replace(/\D/g, '');
+    const cnpjExiste = await prisma.empresa.findUnique({ where: { cnpj: cnpjLimpo } });
+    if (cnpjExiste) {
+      return reply.status(409).send({
+        sucesso: false,
+        mensagem: 'Já existe uma oficina cadastrada com este CNPJ.',
+      });
+    }
+
+    const senhaHash = await bcrypt.hash(body.senhaAdmin, 10);
+
+    const resultado = await prisma.$transaction(async (tx) => {
+      const novaEmpresa = await tx.empresa.create({
+        data: {
+          razaoSocial: body.razaoSocial.trim(),
+          nomeFantasia: (body.nomeFantasia || body.razaoSocial).trim(),
+          cnpj: cnpjLimpo,
+          telefone: body.telefone?.trim() || '(00) 00000-0000',
+          cidade: body.cidade?.trim() || 'São Paulo',
+          uf: (body.uf || 'SP').trim().toUpperCase().slice(0, 2),
+          planoAssinatura: body.planoAssinatura || 'BASICO',
+          comFotos: Boolean(body.comFotos),
+          ativo: true,
+        } as any,
+      });
+
+      const unidade = await tx.unidade.create({
+        data: {
+          empresaId: novaEmpresa.id,
+          nome: 'Matriz',
+          principal: true,
+          ativo: true,
+        },
+      });
+
+      let usuarioAdmin = await tx.usuario.findUnique({ where: { email: body.emailAdmin.trim() } });
+      if (!usuarioAdmin) {
+        usuarioAdmin = await tx.usuario.create({
+          data: {
+            nome: body.nomeAdmin.trim(),
+            email: body.emailAdmin.trim(),
+            senhaHash,
+            ativo: true,
+          },
+        });
+      }
+
+      const vinculo = await tx.vinculoUsuarioEmpresa.create({
+        data: {
+          usuarioId: usuarioAdmin.id,
+          empresaId: novaEmpresa.id,
+          unidadeId: unidade.id,
+          ativo: true,
+          alcadaDesconto: 100.0,
+        },
+      });
+
+      const perfilAdmin = await tx.perfil.findUnique({
+        where: { codigo: PerfilAcesso.ADMIN_GERAL },
+      });
+
+      if (perfilAdmin) {
+        await tx.vinculoPerfil.create({
+          data: {
+            vinculoId: vinculo.id,
+            perfilId: perfilAdmin.id,
+          },
+        });
+      }
+
+      return { novaEmpresa, unidade, usuarioAdmin };
+    });
+
+    return reply.status(201).send({
+      sucesso: true,
+      mensagem: `Oficina '${resultado.novaEmpresa.nomeFantasia}' criada no plano ${(resultado.novaEmpresa as any).planoAssinatura}!`,
+      dados: resultado,
+    });
+  });
 }

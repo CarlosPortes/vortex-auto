@@ -1,14 +1,15 @@
 import React from 'react';
-import { Wrench, Building2, User, LogOut, ShieldCheck } from 'lucide-react';
+import { Wrench, Building2, User, LogOut, ShieldCheck, Crown } from 'lucide-react';
 import { UserTenantContext } from '../types';
 import { ThemeSelector } from './ThemeSelector';
 
 interface HeaderProps {
   context: UserTenantContext | null;
   onLogout: () => void;
+  onAbrirGestaoOficinas?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ context, onLogout }) => {
+export const Header: React.FC<HeaderProps> = ({ context, onLogout, onAbrirGestaoOficinas }) => {
   return (
     <header
       className="glass-panel"
@@ -57,6 +58,29 @@ export const Header: React.FC<HeaderProps> = ({ context, onLogout }) => {
 
         {context && (
           <>
+            {onAbrirGestaoOficinas && (
+              <button
+                type="button"
+                onClick={onAbrirGestaoOficinas}
+                className="btn btn-secondary"
+                title="Gerenciar todas as oficinas cadastradas e definir o plano de cada uma"
+                style={{
+                  padding: '8px 14px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  border: '1px solid rgba(245, 158, 11, 0.45)',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  color: 'var(--accent-amber)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                }}
+              >
+                <Crown size={15} />
+                Oficinas & Planos
+              </button>
+            )}
+
             <div style={{
               display: 'flex',
               alignItems: 'center',

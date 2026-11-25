@@ -276,10 +276,15 @@ export async function financeiroRoutes(app: FastifyInstance) {
       }
 
       if (atendimento.cobranca) {
-        return reply.status(400).send({
-          sucesso: false,
-          mensagem: `Já existe uma cobrança (${atendimento.cobranca.codigoFormatado}) gerada para este atendimento.`,
-        });
+        // Se a cobrança existente ainda não teve nenhum valor recebido, permite recalcular/atualizar os valores
+        if (Number(atendimento.cobranca.valorRecebido) === 0) {
+          await prisma.cobranca.delete({ where: { id: atendimento.cobranca.id } });
+        } else {
+          return reply.status(400).send({
+            sucesso: false,
+            mensagem: `A cobrança (${atendimento.cobranca.codigoFormatado}) já possui recebimentos registrados e não pode ser substituída.`,
+          });
+        }
       }
 
       const versaoOrcamento = atendimento.orcamento?.versoes[0];

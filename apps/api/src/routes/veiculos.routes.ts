@@ -198,4 +198,69 @@ export async function veiculosRoutes(app: FastifyInstance) {
       });
     }
   );
+
+  /**
+   * PUT /api/veiculos/:id
+   * Atualizar dados do Veículo ou Equipamento/Ferramenta de Bancada
+   */
+  app.put(
+    '/:id',
+    { preHandler: [exigirPermissao(PermissaoAcesso.VEICULO_GERENCIAR)] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const tenant = request.tenant!;
+      const { id } = request.params as { id: string };
+      const body = request.body as {
+        placa?: string;
+        marca?: string;
+        modelo?: string;
+        anoFabricacao?: number | null;
+        anoModelo?: number | null;
+        cor?: string | null;
+        combustivel?: string | null;
+      };
+
+      const veiculo = await prisma.veiculo.findFirst({
+        where: { id, empresaId: tenant.empresaId },
+      });
+
+      if (!veiculo) {
+        return reply.status(404).send({ sucesso: false, mensagem: 'Veículo/item não encontrado.' });
+      }
+
+      const placaFormatada = body.placa
+        ? body.placa.trim().replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+        : veiculo.placa;
+
+      const atualizado = await prisma.veiculo.update({
+        where: { id: veiculo.id },
+        data: {
+          placa: placaFormatada,
+          marca: body.marca ? body.marca.trim() : veiculo.marca,
+          modelo: body.modelo ? body.modelo.trim() : veiculo.modelo,
+          anoFabricacao: body.anoFabricacao !== undefined ? (body.anoFabricacao ? Number(body.anoFabricacao) : null) : veiculo.anoFabricacao,
+          anoModelo: body.anoModelo !== undefined ? (body.anoModelo ? Number(body.anoModelo) : null) : veiculo.anoModelo,
+          cor: body.cor !== undefined ? body.cor?.trim() || null : veiculo.cor,
+          combustivel: body.combustivel !== undefined ? body.combustivel?.trim() || null : veiculo.combustivel,
+        },
+      });
+
+      await AuditoriaService.registrar({
+        empresaId: tenant.empresaId,
+        unidadeId: tenant.unidadeId,
+        usuarioId: tenant.usuarioId,
+        operacao: TipoOperacaoAuditoria.ALTERACAO,
+        entidade: 'Veiculo',
+        entidadeId: atualizado.id,
+        detalhes: { placa: atualizado.placa, modelo: atualizado.modelo },
+        ipOrigem: request.ip,
+        userAgent: request.headers['user-agent'],
+      });
+
+      return reply.send({
+        sucesso: true,
+        mensagem: 'Cadastro do veículo/item atualizado com sucesso!',
+        dados: atualizado,
+      });
+    }
+  );
 }

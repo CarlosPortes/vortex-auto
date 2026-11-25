@@ -131,6 +131,21 @@ export const OrdensServicoTab: React.FC = () => {
     const res = await apiRequest<OrdemServico[]>(url);
     if (res.sucesso && res.dados) {
       setOrdens(res.dados);
+
+      // Sincroniza fotos persistidas no PostgreSQL com o estado local
+      setFotosOS((prev) => {
+        const next = { ...prev };
+        for (const o of res.dados!) {
+          if (Array.isArray(o.fotos) && o.fotos.length > 0) {
+            next[o.id] = o.fotos.map((f) => ({
+              ...f,
+              dataHora: f.dataHora ? new Date(f.dataHora).toLocaleString('pt-BR') : '',
+            }));
+          }
+        }
+        return next;
+      });
+
       if (osSelecionada) {
         const atualizada = res.dados.find((o) => o.id === osSelecionada.id);
         if (atualizada) setOsSelecionada(atualizada);
@@ -325,7 +340,20 @@ export const OrdensServicoTab: React.FC = () => {
     localStorage.setItem('vortex_os_itens_avulsos', JSON.stringify(atualizados));
   };
 
-  // Upload de Foto Antes / Durante / Depois
+  const handleExcluirAtividade = async (osId: string, atividadeId: string) => {
+    if (!window.confirm('Deseja remover este serviço/atividade da Ordem de Serviço?')) return;
+    const res = await apiRequest(`/os/${osId}/atividades/${atividadeId}`, {
+      method: 'DELETE',
+    });
+    if (res.sucesso) {
+      setFeedbackMsg({ tipo: 'sucesso', texto: 'Serviço/atividade removido da OS!' });
+      carregarOrdens();
+    } else {
+      setFeedbackMsg({ tipo: 'erro', texto: res.mensagem || 'Erro ao remover atividade.' });
+    }
+  };
+
+  // Upload de Foto Antes / Durante / Depois (Persistido no PostgreSQL)
   const handleUploadFotoEtapa = (
     osId: string,
     etapa: 'ANTES' | 'DURANTE' | 'DEPOIS',
@@ -334,21 +362,39 @@ export const OrdensServicoTab: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const legendaFinal =
+      legendaNovaFoto.trim() ||
+      (etapa === 'ANTES'
+        ? 'Estado inicial antes do serviço'
+        : etapa === 'DURANTE'
+          ? 'Execução do serviço / solda / reparo'
+          : 'Serviço concluído e inspecionado');
+
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const novaFoto: FotoEtapaOS = {
-        id: 'foto-' + Date.now(),
-        etapa,
-        legenda:
-          legendaNovaFoto.trim() ||
-          (etapa === 'ANTES'
-            ? 'Estado inicial antes do serviço'
-            : etapa === 'DURANTE'
-              ? 'Execução do serviço / solda / reparo'
-              : 'Serviço concluído e inspecionado'),
-        url: reader.result as string,
-        dataHora: new Date().toLocaleString('pt-BR'),
-      };
+    reader.onloadend = async () => {
+      const urlBase64 = reader.result as string;
+
+      const res = await apiRequest<FotoEtapaOS>(`/os/${osId}/fotos`, {
+        method: 'POST',
+        body: JSON.stringify({
+          etapa,
+          legenda: legendaFinal,
+          url: urlBase64,
+        }),
+      });
+
+      const novaFoto: FotoEtapaOS = res.sucesso && res.dados
+        ? {
+            ...res.dados,
+            dataHora: new Date(res.dados.dataHora).toLocaleString('pt-BR'),
+          }
+        : {
+            id: 'foto-' + Date.now(),
+            etapa,
+            legenda: legendaFinal,
+            url: urlBase64,
+            dataHora: new Date().toLocaleString('pt-BR'),
+          };
 
       const listaAtual = fotosOS[osId] || [];
       const atualizado = {
@@ -356,14 +402,18 @@ export const OrdensServicoTab: React.FC = () => {
         [osId]: [...listaAtual, novaFoto],
       };
       setFotosOS(atualizado);
-      localStorage.setItem('vortex_os_fotos_etapas', JSON.stringify(atualizado));
+      try {
+        localStorage.setItem('vortex_os_fotos_etapas', JSON.stringify(atualizado));
+      } catch {
+        // Ignora limite de 5MB do localStorage pois já está salvo no PostgreSQL
+      }
       setLegendaNovaFoto('');
     };
     reader.readAsDataURL(file);
     e.target.value = '';
   };
 
-  const handleAdicionarFotoDemo = (osId: string, etapa: 'ANTES' | 'DURANTE' | 'DEPOIS') => {
+  const handleAdicionarFotoDemo = async (osId: string, etapa: 'ANTES' | 'DURANTE' | 'DEPOIS') => {
     const urlsDemo: Record<'ANTES' | 'DURANTE' | 'DEPOIS', string> = {
       ANTES:
         'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80',
@@ -379,13 +429,27 @@ export const OrdensServicoTab: React.FC = () => {
       DEPOIS: legendaNovaFoto.trim() || 'Depois: Serviço finalizado, esmerilhado e pronto para entrega',
     };
 
-    const novaFoto: FotoEtapaOS = {
-      id: 'foto-' + Date.now(),
-      etapa,
-      legenda: legendasDemo[etapa],
-      url: urlsDemo[etapa],
-      dataHora: new Date().toLocaleString('pt-BR'),
-    };
+    const res = await apiRequest<FotoEtapaOS>(`/os/${osId}/fotos`, {
+      method: 'POST',
+      body: JSON.stringify({
+        etapa,
+        legenda: legendasDemo[etapa],
+        url: urlsDemo[etapa],
+      }),
+    });
+
+    const novaFoto: FotoEtapaOS = res.sucesso && res.dados
+      ? {
+          ...res.dados,
+          dataHora: new Date(res.dados.dataHora).toLocaleString('pt-BR'),
+        }
+      : {
+          id: 'foto-' + Date.now(),
+          etapa,
+          legenda: legendasDemo[etapa],
+          url: urlsDemo[etapa],
+          dataHora: new Date().toLocaleString('pt-BR'),
+        };
 
     const listaAtual = fotosOS[osId] || [];
     const atualizado = {
@@ -393,30 +457,124 @@ export const OrdensServicoTab: React.FC = () => {
       [osId]: [...listaAtual, novaFoto],
     };
     setFotosOS(atualizado);
-    localStorage.setItem('vortex_os_fotos_etapas', JSON.stringify(atualizado));
+    try {
+      localStorage.setItem('vortex_os_fotos_etapas', JSON.stringify(atualizado));
+    } catch {
+      // Já salvo no PostgreSQL
+    }
     setLegendaNovaFoto('');
   };
 
-  const handleRemoverFotoEtapa = (osId: string, fotoId: string) => {
+  const handleRemoverFotoEtapa = async (osId: string, fotoId: string) => {
     const filtradas = (fotosOS[osId] || []).filter((f) => f.id !== fotoId);
     const atualizado = {
       ...fotosOS,
       [osId]: filtradas,
     };
     setFotosOS(atualizado);
-    localStorage.setItem('vortex_os_fotos_etapas', JSON.stringify(atualizado));
+    try {
+      localStorage.setItem('vortex_os_fotos_etapas', JSON.stringify(atualizado));
+    } catch {}
+    await apiRequest(`/os/${osId}/fotos/${fotoId}`, { method: 'DELETE' }).catch(() => {});
   };
 
-  // Calcular total financeiro da OS (somando itens avulsos ou valor base das atividades)
+  // Calcular total financeiro da OS (priorizando orçamento sincronizado no banco ou itens lançados)
   const calcularValorTotalOS = (os: OrdemServico): number => {
-    if (os.atendimento?.cobranca?.valorLiquido) {
-      return Number(os.atendimento.cobranca.valorLiquido);
+    if (os.orcamentoResumo && os.orcamentoResumo.valorTotalFinal > 0) {
+      return Number(os.orcamentoResumo.valorTotalFinal);
     }
     const avulsos = itensAvulsos[os.id] || [];
     if (avulsos.length > 0) {
       return avulsos.reduce((acc, i) => acc + i.valorTotal, 0);
     }
+    if (os.atendimento?.cobranca?.valorLiquido) {
+      return Number(os.atendimento.cobranca.valorLiquido);
+    }
     return Math.max(45, os.atividades.length * 45);
+  };
+
+  const handleImprimirOS = (os: OrdemServico) => {
+    const fotos = fotosOS[os.id] || [];
+    const valorTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+      calcularValorTotalOS(os)
+    );
+    const win = window.open('', '_blank', 'width=900,height=750');
+    if (!win) return;
+
+    const fotosHtml =
+      fotos.length > 0
+        ? `<h3>Registros Fotográficos (Antes • Durante • Depois)</h3>
+           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px;">
+             ${fotos
+               .map(
+                 (f) => `
+               <div style="border:1px solid #cbd5e1;border-radius:8px;padding:8px;">
+                 <div style="font-size:11px;font-weight:700;color:#0284c7;margin-bottom:4px;">ETAPA: ${f.etapa}</div>
+                 <img src="${f.url}" style="width:100%;height:140px;object-fit:cover;border-radius:4px;" />
+                 <div style="font-size:12px;margin-top:4px;font-weight:600;">${f.legenda}</div>
+               </div>`
+               )
+               .join('')}
+           </div>`
+        : '';
+
+    win.document.write(`
+      <html>
+        <head>
+          <title>Ordem de Serviço ${os.codigoFormatado}</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #0f172a; padding: 24px; }
+            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0284c7; padding-bottom: 12px; margin-bottom: 16px; }
+            .box { border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 14px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 13px; }
+            th { background: #f1f5f9; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h2 style="margin:0;color:#0284c7;">VORTEX AUTO — ORDEM DE SERVIÇO</h2>
+              <div style="font-size:13px;color:#475569;">Comprovante Técnico de Execução e Garantia</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:18px;font-weight:bold;">${os.codigoFormatado}</div>
+              <div style="font-size:12px;">Status: ${os.status}</div>
+              <div style="font-size:12px;">Emissão: ${new Date(os.criadoEm).toLocaleDateString('pt-BR')}</div>
+            </div>
+          </div>
+          <div class="box">
+            <strong>Cliente:</strong> ${os.atendimento.cliente.nomeRazao} • <strong>Tel:</strong> ${os.atendimento.cliente.telefone}<br/>
+            <strong>Veículo / Ferramenta / Item:</strong> ${os.atendimento.veiculo.marca} ${os.atendimento.veiculo.modelo} (${os.atendimento.veiculo.placa})<br/>
+            <strong>Solicitação / Queixa:</strong> ${os.atendimento.queixaPrincipal}
+          </div>
+          <h3>Serviços e Atividades Executadas</h3>
+          <table>
+            <thead>
+              <tr><th>Descrição do Serviço / Item</th><th>Status</th><th>Tempo Estimado</th></tr>
+            </thead>
+            <tbody>
+              ${os.atividades
+                .map(
+                  (a) =>
+                    `<tr><td>${a.descricao}</td><td>${a.status}</td><td>${a.tempoEstimadoMinutos} min</td></tr>`
+                )
+                .join('')}
+            </tbody>
+          </table>
+          <div class="box" style="margin-top:16px;text-align:right;font-size:16px;">
+            <strong>Valor Total da Ordem de Serviço: ${valorTotal}</strong>
+          </div>
+          ${fotosHtml}
+          <div style="margin-top:48px;display:flex;justify-content:space-between;font-size:12px;">
+            <div style="border-top:1px solid #334155;width:42%;text-align:center;padding-top:6px;">Assinatura do Responsável Técnico</div>
+            <div style="border-top:1px solid #334155;width:42%;text-align:center;padding-top:6px;">Assinatura do Cliente (${os.atendimento.cliente.nomeRazao})</div>
+          </div>
+          <script>window.onload = () => { window.print(); }</script>
+        </body>
+      </html>
+    `);
+    win.document.close();
   };
 
   // Gerar Faturamento / Cobrança diretamente pela OS
@@ -1135,6 +1293,16 @@ export const OrdensServicoTab: React.FC = () => {
                             >
                               <CheckCircle2 size={12} /> Concluir
                             </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleExcluirAtividade(osSelecionada.id, ativ.id)}
+                              className="btn btn-secondary"
+                              style={{ padding: '6px 8px', fontSize: '0.72rem', color: '#f87171' }}
+                              title="Remover serviço/atividade lançada por engano"
+                            >
+                              <Trash2 size={12} />
+                            </button>
                           </div>
                         )}
                       </div>
@@ -1541,6 +1709,15 @@ export const OrdensServicoTab: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => handleImprimirOS(osSelecionada)}
+                  className="btn btn-secondary"
+                  title="Imprimir ou Salvar PDF da Ordem de Serviço com fotos"
+                >
+                  🖨️ Imprimir OS / PDF
+                </button>
+
                 <button onClick={() => setModalDetalhes(false)} className="btn btn-secondary">
                   Fechar
                 </button>

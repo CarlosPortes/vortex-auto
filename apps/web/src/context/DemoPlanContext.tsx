@@ -1,11 +1,14 @@
 import React, { createContext, useContext, useState } from 'react';
 import { PlanoSistema } from '../types';
+import { apiRequest } from '../api';
 
 interface DemoPlanContextData {
   planoAtivo: PlanoSistema;
   comFotos: boolean;
-  setPlanoAtivo: (plano: PlanoSistema) => void;
-  setComFotos: (comFotos: boolean) => void;
+  empresaAtivaId: string | null;
+  setPlanoAtivo: (plano: PlanoSistema, persistirNoBanco?: boolean) => void;
+  setComFotos: (comFotos: boolean, persistirNoBanco?: boolean) => void;
+  sincronizarComSessao: (empresaId: string, plano?: PlanoSistema, comFotos?: boolean) => void;
   isAbaPermitida: (aba: string) => boolean;
   infoPlano: {
     nome: string;
@@ -91,18 +94,48 @@ export const DemoPlanProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return salvo !== null ? salvo === 'true' : false;
   });
 
-  const setPlanoAtivo = (plano: PlanoSistema) => {
-    setPlanoAtivoState(plano);
-    localStorage.setItem('vortex_demo_plano', plano);
+  const [empresaAtivaId, setEmpresaAtivaId] = useState<string | null>(null);
+
+  const sincronizarComSessao = (empresaId: string, plano?: PlanoSistema, fotos?: boolean) => {
+    setEmpresaAtivaId(empresaId);
+    if (plano && ['BASICO', 'INTERMEDIARIO', 'AVANCADO'].includes(plano)) {
+      setPlanoAtivoState(plano);
+      localStorage.setItem('vortex_demo_plano', plano);
+    }
+    if (fotos !== undefined) {
+      setComFotosState(Boolean(fotos));
+      localStorage.setItem('vortex_demo_fotos', String(Boolean(fotos)));
+    }
   };
 
-  const setComFotos = (ativo: boolean) => {
+  const setPlanoAtivo = (plano: PlanoSistema, persistirNoBanco = true) => {
+    setPlanoAtivoState(plano);
+    localStorage.setItem('vortex_demo_plano', plano);
+    if (persistirNoBanco && empresaAtivaId) {
+      apiRequest(`/admin/oficinas/${empresaAtivaId}/plano`, {
+        method: 'PATCH',
+        body: JSON.stringify({ planoAssinatura: plano }),
+      }).catch(() => {});
+    }
+  };
+
+  const setComFotos = (ativo: boolean, persistirNoBanco = true) => {
     setComFotosState(ativo);
     localStorage.setItem('vortex_demo_fotos', String(ativo));
+    if (persistirNoBanco && empresaAtivaId) {
+      apiRequest(`/admin/oficinas/${empresaAtivaId}/plano`, {
+        method: 'PATCH',
+        body: JSON.stringify({ comFotos: ativo }),
+      }).catch(() => {});
+    }
   };
 
   // Regra de Abas Permitidas por Plano
   const isAbaPermitida = (aba: string): boolean => {
+    if (aba === 'SUPER_ADMIN_OFICINAS') {
+      return true; // Aba de gestão de oficinas está sempre liberada para o Administrador
+    }
+
     if (planoAtivo === 'AVANCADO') {
       return true; // Avançado vê tudo
     }
@@ -138,8 +171,10 @@ export const DemoPlanProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       value={{
         planoAtivo,
         comFotos,
+        empresaAtivaId,
         setPlanoAtivo,
         setComFotos,
+        sincronizarComSessao,
         isAbaPermitida,
         infoPlano: PLANOS_INFO[planoAtivo],
       }}

@@ -21,6 +21,7 @@ export const ClientesVeiculosTab: React.FC = () => {
 
   // Modais
   const [modalClienteAberto, setModalClienteAberto] = useState(false);
+  const [clienteEditandoId, setClienteEditandoId] = useState<string | null>(null);
   const [modalVeiculoAberto, setModalVeiculoAberto] = useState(false);
   const [clienteSelecionadoParaVeiculo, setClienteSelecionadoParaVeiculo] = useState<string>('');
 
@@ -78,8 +79,11 @@ export const ClientesVeiculosTab: React.FC = () => {
     setFormLoading(true);
     setErrorMsg('');
 
-    const res = await apiRequest('/clientes', {
-      method: 'POST',
+    const endpoint = clienteEditandoId ? `/clientes/${clienteEditandoId}` : '/clientes';
+    const method = clienteEditandoId ? 'PUT' : 'POST';
+
+    const res = await apiRequest(endpoint, {
+      method,
       body: JSON.stringify({
         tipo: tipoPessoa,
         nomeRazao,
@@ -94,14 +98,28 @@ export const ClientesVeiculosTab: React.FC = () => {
     setFormLoading(false);
     if (res.sucesso) {
       setModalClienteAberto(false);
+      setClienteEditandoId(null);
       setNomeRazao('');
       setCpfCnpj('');
       setTelefone('');
       setEmail('');
       carregarDados();
     } else {
-      setErrorMsg(res.mensagem || 'Falha ao cadastrar cliente');
+      setErrorMsg(res.mensagem || 'Falha ao salvar cliente');
     }
+  };
+
+  const abrirEdicaoCliente = (c: Cliente) => {
+    setClienteEditandoId(c.id);
+    setTipoPessoa((c.tipo as 'FISICA' | 'JURIDICA') || 'FISICA');
+    setNomeRazao(c.nomeRazao);
+    setCpfCnpj(c.cpfCnpj);
+    setTelefone(c.telefone);
+    setEmail(c.email || '');
+    setCidade(c.cidade || '');
+    setUf(c.uf || 'SP');
+    setErrorMsg('');
+    setModalClienteAberto(true);
   };
 
   const handleCadastrarVeiculo = async (e: React.FormEvent) => {
@@ -202,17 +220,28 @@ export const ClientesVeiculosTab: React.FC = () => {
                       {c.tipo === 'FISICA' ? 'Pessoa Física' : 'Pessoa Jurídica'} • CPF/CNPJ: {c.cpfCnpj}
                     </span>
                   </div>
-                  <button
-                    onClick={() => {
-                      setClienteSelecionadoParaVeiculo(c.id);
-                      setModalVeiculoAberto(true);
-                    }}
-                    className="btn btn-secondary"
-                    style={{ fontSize: '0.72rem', padding: '4px 8px' }}
-                    title="Adicionar Veículo a este Cliente"
-                  >
-                    <Car size={13} /> + Veículo
-                  </button>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => abrirEdicaoCliente(c)}
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.72rem', padding: '4px 8px' }}
+                      title="Editar dados do Cliente"
+                    >
+                      ✏️ Editar
+                    </button>
+                    <button
+                      onClick={() => {
+                        setClienteSelecionadoParaVeiculo(c.id);
+                        setModalVeiculoAberto(true);
+                      }}
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.72rem', padding: '4px 8px' }}
+                      title="Adicionar Veículo a este Cliente"
+                    >
+                      <Car size={13} /> + Veículo
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '14px' }}>

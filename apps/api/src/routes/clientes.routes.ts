@@ -179,4 +179,71 @@ export async function clientesRoutes(app: FastifyInstance) {
 
     return reply.send({ sucesso: true, dados: cliente });
   });
+
+  /**
+   * PUT /api/clientes/:id
+   * Atualizar cadastro de Cliente (correção de nome, CPF/CNPJ, telefone, e-mail, cidade/UF)
+   */
+  app.put(
+    '/:id',
+    { preHandler: [exigirPermissao(PermissaoAcesso.CLIENTE_GERENCIAR)] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const tenant = request.tenant!;
+      const { id } = request.params as { id: string };
+      const body = request.body as {
+        tipo?: string;
+        nomeRazao?: string;
+        apelidoFantasia?: string;
+        cpfCnpj?: string;
+        telefone?: string;
+        email?: string;
+        cidade?: string;
+        uf?: string;
+        observacoes?: string;
+      };
+
+      const cliente = await prisma.cliente.findFirst({
+        where: { id, empresaId: tenant.empresaId },
+      });
+
+      if (!cliente) {
+        return reply.status(404).send({ sucesso: false, mensagem: 'Cliente não encontrado.' });
+      }
+
+      const cpfCnpjLimpo = body.cpfCnpj ? body.cpfCnpj.replace(/\D/g, '') : cliente.cpfCnpj;
+
+      const atualizado = await prisma.cliente.update({
+        where: { id: cliente.id },
+        data: {
+          tipo: body.tipo || cliente.tipo,
+          nomeRazao: body.nomeRazao ? body.nomeRazao.trim() : cliente.nomeRazao,
+          apelidoFantasia: body.apelidoFantasia !== undefined ? body.apelidoFantasia?.trim() || null : cliente.apelidoFantasia,
+          cpfCnpj: cpfCnpjLimpo || cliente.cpfCnpj,
+          telefone: body.telefone ? body.telefone.trim() : cliente.telefone,
+          email: body.email !== undefined ? body.email?.trim() || null : cliente.email,
+          cidade: body.cidade !== undefined ? body.cidade?.trim() || null : cliente.cidade,
+          uf: body.uf !== undefined ? (body.uf ? body.uf.trim().toUpperCase().slice(0, 2) : null) : cliente.uf,
+          observacoes: body.observacoes !== undefined ? body.observacoes?.trim() || null : cliente.observacoes,
+        },
+      });
+
+      await AuditoriaService.registrar({
+        empresaId: tenant.empresaId,
+        unidadeId: tenant.unidadeId,
+        usuarioId: tenant.usuarioId,
+        operacao: TipoOperacaoAuditoria.ALTERACAO,
+        entidade: 'Cliente',
+        entidadeId: atualizado.id,
+        detalhes: { nome: atualizado.nomeRazao, documento: atualizado.cpfCnpj },
+        ipOrigem: request.ip,
+        userAgent: request.headers['user-agent'],
+      });
+
+      return reply.send({
+        sucesso: true,
+        mensagem: 'Cadastro do cliente atualizado com sucesso!',
+        dados: atualizado,
+      });
+    }
+  );
 }

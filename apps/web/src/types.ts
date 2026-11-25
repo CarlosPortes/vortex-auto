@@ -8,6 +8,39 @@ export interface UserTenantContext {
   nomeUsuario: string;
   emailUsuario: string;
   razaoSocialEmpresa: string;
+  superAdmin?: boolean;
+  planoAssinatura?: PlanoSistema;
+  comFotos?: boolean;
+}
+
+export interface OficinaAdminSaaS {
+  id: string;
+  razaoSocial: string;
+  nomeFantasia: string;
+  cnpj: string;
+  telefone: string;
+  cidade: string;
+  uf: string;
+  planoAssinatura: PlanoSistema;
+  comFotos: boolean;
+  ativo: boolean;
+  criadoEm: string;
+  atualizadoEm: string;
+  unidadePrincipalId: string | null;
+  unidadePrincipalNome: string;
+  responsavel?: {
+    id: string;
+    nome: string;
+    email: string;
+  } | null;
+  metricas: {
+    clientes: number;
+    veiculos: number;
+    atendimentos: number;
+    ordensServico: number;
+    produtos: number;
+    usuarios: number;
+  };
 }
 
 export interface Colaborador {
@@ -226,6 +259,7 @@ export interface MovimentoEstoque {
 
 export interface AtividadeOS {
   id: string;
+  itemOrcamentoId?: string | null;
   descricao: string;
   status: string; // PENDENTE, EM_EXECUCAO, PAUSADA, CONCLUIDA, CANCELADA
   tempoEstimadoMinutos: number;
@@ -260,12 +294,26 @@ export interface OrdemServico {
       valorRecebido: number;
     } | null;
   };
+  orcamentoResumo?: {
+    valorTotalPecas: number;
+    valorTotalServicos: number;
+    valorTotalFinal: number;
+    itens: Array<{
+      id: string;
+      tipo: 'SERVICO' | 'PECA';
+      descricao: string;
+      quantidade: number;
+      valorUnitario: number;
+      valorTotal: number;
+    }>;
+  } | null;
   progresso: {
     totalAtividades: number;
     concluidas: number;
     progressoPercent: number;
   };
   atividades: AtividadeOS[];
+  fotos?: FotoEtapaOS[];
   criadoEm: string;
 }
 

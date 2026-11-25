@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Wrench,
   Plus,
@@ -8,6 +8,7 @@ import {
   Check,
 } from 'lucide-react';
 import { ServicoCatalogo } from '../types';
+import { apiRequest } from '../api';
 
 export const SERVICOS_CATALOGO_PADRAO: ServicoCatalogo[] = [
   {
@@ -143,22 +144,50 @@ export const CatalogoServicosModal: React.FC<CatalogoServicosModalProps> = ({
   const [novoTempo, setNovoTempo] = useState<number>(30);
   const [novaDesc, setNovaDesc] = useState('');
 
-  const handleCriarServico = (e: React.FormEvent) => {
+  // Sincroniza o catálogo do PostgreSQL ao abrir o modal
+  useEffect(() => {
+    apiRequest<ServicoCatalogo[]>('/os/catalogo-servicos')
+      .then((res) => {
+        if (res.sucesso && Array.isArray(res.dados) && res.dados.length > 0) {
+          setServicos(res.dados);
+          salvarCatalogoServicos(res.dados);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleCriarServico = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!novoNome.trim()) return;
 
     const proximoNum = servicos.length + 1;
-    const novo: ServicoCatalogo = {
-      id: 'srv-' + Date.now(),
-      codigo: `SRV-${String(proximoNum).padStart(3, '0')}`,
-      nome: novoNome.trim(),
-      categoria: novaCat,
-      valorSugerido: Number(novoValor) || 0,
-      tempoEstimadoMinutos: Number(novoTempo) || 30,
-      descricaoPadrao: novaDesc.trim() || undefined,
-    };
+    const codigoGerado = `SRV-${String(proximoNum).padStart(3, '0')}`;
 
-    const atualizados = [novo, ...servicos];
+    const res = await apiRequest<ServicoCatalogo>('/os/catalogo-servicos', {
+      method: 'POST',
+      body: JSON.stringify({
+        codigo: codigoGerado,
+        nome: novoNome.trim(),
+        categoria: novaCat,
+        valorSugerido: Number(novoValor) || 0,
+        tempoEstimadoMinutos: Number(novoTempo) || 30,
+        descricaoPadrao: novaDesc.trim() || undefined,
+      }),
+    });
+
+    const novo: ServicoCatalogo = res.sucesso && res.dados
+      ? res.dados
+      : {
+          id: 'srv-' + Date.now(),
+          codigo: codigoGerado,
+          nome: novoNome.trim(),
+          categoria: novaCat,
+          valorSugerido: Number(novoValor) || 0,
+          tempoEstimadoMinutos: Number(novoTempo) || 30,
+          descricaoPadrao: novaDesc.trim() || undefined,
+        };
+
+    const atualizados = [novo, ...servicos.filter((s) => s.codigo !== novo.codigo)];
     setServicos(atualizados);
     salvarCatalogoServicos(atualizados);
     setNovoNome('');
@@ -166,10 +195,11 @@ export const CatalogoServicosModal: React.FC<CatalogoServicosModalProps> = ({
     setCriandoNovo(false);
   };
 
-  const handleExcluir = (id: string) => {
+  const handleExcluir = async (id: string) => {
     const atualizados = servicos.filter((s) => s.id !== id);
     setServicos(atualizados);
     salvarCatalogoServicos(atualizados);
+    await apiRequest(`/os/catalogo-servicos/${id}`, { method: 'DELETE' }).catch(() => {});
   };
 
   const servicosFiltrados = servicos.filter((s) => {

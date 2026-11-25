@@ -15,6 +15,7 @@ import {
   TrendingUp,
   ShoppingCart,
   Store,
+  Crown,
 } from 'lucide-react';
 import { Header } from './components/Header';
 import { DemoPlanBar } from './components/DemoPlanBar';
@@ -29,6 +30,7 @@ import { ComprasMRPTab } from './components/ComprasMRPTab';
 import { VendasBalcaoTab } from './components/VendasBalcaoTab';
 import { FinanceiroTab } from './components/FinanceiroTab';
 import { RelatoriosTab } from './components/RelatoriosTab';
+import { SuperAdminOficinasTab } from './components/SuperAdminOficinasTab';
 import { LoginModal } from './components/LoginModal';
 import { apiRequest, clearStoredToken } from './api';
 import { UserTenantContext, Colaborador, RegistroAuditoria } from './types';
@@ -51,12 +53,13 @@ const AppContent: React.FC = () => {
     | 'COLABORADORES'
     | 'AUDITORIA'
     | 'SISTEMA'
+    | 'SUPER_ADMIN_OFICINAS'
   >('ATENDIMENTOS');
 
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [auditorias, setAuditorias] = useState<RegistroAuditoria[]>([]);
 
-  const { planoAtivo, isAbaPermitida, infoPlano } = useDemoPlan();
+  const { planoAtivo, isAbaPermitida, infoPlano, sincronizarComSessao } = useDemoPlan();
 
   // Quando o plano mudar, se a aba ativa não for suportada no plano atual, volta para ATENDIMENTOS
   useEffect(() => {
@@ -70,6 +73,7 @@ const AppContent: React.FC = () => {
     const res = await apiRequest<UserTenantContext>('/auth/me');
     if (res.sucesso && res.dados) {
       setContext(res.dados);
+      sincronizarComSessao(res.dados.empresaId, res.dados.planoAssinatura, res.dados.comFotos);
       carregarDadosAdmin();
     } else {
       setContext(null);
@@ -119,13 +123,21 @@ const AppContent: React.FC = () => {
     return <LoginModal onLoginSuccess={carregarSessao} />;
   }
 
+  const isAdminPlataforma = Boolean(context.superAdmin || context.perfis.includes('ADMIN_GERAL'));
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Header context={context} onLogout={handleLogout} />
+      <Header
+        context={context}
+        onLogout={handleLogout}
+        onAbrirGestaoOficinas={isAdminPlataforma ? () => setAbaAtiva('SUPER_ADMIN_OFICINAS') : undefined}
+      />
 
       <main style={{ flex: 1, padding: '0 24px 32px 24px', maxWidth: '1440px', width: '100%', margin: '0 auto' }}>
-        {/* Barra de Seleção dos 3 Perfis de Pacote (Demonstração Comercial) */}
-        <DemoPlanBar />
+        {/* Barra de Seleção dos 3 Perfis de Pacote (Visível para SuperAdmin / Admin Geral) */}
+        {isAdminPlataforma && (
+          <DemoPlanBar onAbrirGestaoOficinas={() => setAbaAtiva('SUPER_ADMIN_OFICINAS')} />
+        )}
 
         {/* KPI Cards — Resumo Adaptativo da Oficina de acordo com o Plano Selecionado */}
         <div
@@ -369,9 +381,35 @@ const AppContent: React.FC = () => {
               <Server size={16} /> Arquitetura & Parâmetros
             </button>
           )}
+
+          {isAdminPlataforma && (
+            <button
+              onClick={() => setAbaAtiva('SUPER_ADMIN_OFICINAS')}
+              className={`btn ${abaAtiva === 'SUPER_ADMIN_OFICINAS' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{
+                border:
+                  abaAtiva === 'SUPER_ADMIN_OFICINAS'
+                    ? '1px solid var(--accent-amber)'
+                    : '1px solid rgba(245, 158, 11, 0.4)',
+                color: abaAtiva === 'SUPER_ADMIN_OFICINAS' ? '#ffffff' : 'var(--accent-amber)',
+              }}
+            >
+              <Crown size={16} /> Oficinas & Planos (SaaS)
+            </button>
+          )}
         </div>
 
         {/* Tab Content */}
+        {abaAtiva === 'SUPER_ADMIN_OFICINAS' && isAdminPlataforma && (
+          <SuperAdminOficinasTab
+            empresaAtivaId={context.empresaId}
+            onTenantSwitched={() => {
+              carregarSessao();
+              setAbaAtiva('ATENDIMENTOS');
+            }}
+          />
+        )}
+
         {abaAtiva === 'ATENDIMENTOS' && (
           <AtendimentosTab onIrParaClientes={() => setAbaAtiva('CLIENTES_VEICULOS')} />
         )}

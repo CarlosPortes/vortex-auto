@@ -391,10 +391,14 @@ export async function orcamentosRoutes(app: FastifyInstance) {
       }
 
       const resultado = await prisma.$transaction(async (tx) => {
-        // 1. Atualizar decisão individual de cada item
+        // 1. Atualizar decisão individual de cada item com isolamento estrito por versão e empresa
         for (const itemDecisao of data.decisoesItens) {
-          await tx.itemOrcamento.update({
-            where: { id: itemDecisao.itemId },
+          await tx.itemOrcamento.updateMany({
+            where: {
+              id: itemDecisao.itemId,
+              versaoOrcamentoId: versao.id,
+              empresaId: tenant.empresaId,
+            },
             data: {
               decisao: itemDecisao.decisao,
               justificativaDecisao: itemDecisao.justificativa || null,

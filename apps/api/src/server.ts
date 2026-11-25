@@ -18,12 +18,56 @@ import { financeiroRoutes } from './routes/financeiro.routes.js';
 import { complementosRoutes } from './routes/complementos.routes.js';
 import { comprasRoutes } from './routes/compras.routes.js';
 import { vendasBalcaoRoutes } from './routes/vendas-balcao.routes.js';
+import { prisma } from './prisma.js';
 
 dotenv.config();
 
 const app = Fastify({
   logger: process.env.NODE_ENV === 'development',
+  bodyLimit: 15 * 1024 * 1024, // 15MB para suportar upload de fotos de antes/durante/depois da OS
 });
+
+async function garantirSchemaAtualizado() {
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE empresas ADD COLUMN IF NOT EXISTS plano_assinatura TEXT NOT NULL DEFAULT 'BASICO';
+      ALTER TABLE empresas ADD COLUMN IF NOT EXISTS com_fotos BOOLEAN NOT NULL DEFAULT false;
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS servicos_catalogo (
+        id TEXT PRIMARY KEY,
+        empresa_id TEXT NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+        codigo TEXT NOT NULL,
+        nome TEXT NOT NULL,
+        categoria TEXT NOT NULL DEFAULT 'MECANICA_GERAL',
+        valor_sugerido NUMERIC(12, 2) NOT NULL DEFAULT 0.0,
+        tempo_estimado_minutos INTEGER NOT NULL DEFAULT 30,
+        descricao_padrao TEXT,
+        ativo BOOLEAN NOT NULL DEFAULT true,
+        criado_em TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         UNIQUE (empresa_id, codigo)
+      );
+      CREATE INDEX IF NOT EXISTS servicos_catalogo_empresa_id_categoria_idx ON servicos_catalogo(empresa_id, categoria);
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS fotos_os (
+        id TEXT PRIMARY KEY,
+        empresa_id TEXT NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+        ordem_servico_id TEXT NOT NULL REFERENCES ordens_servico(id) ON DELETE CASCADE,
+        etapa TEXT NOT NULL DEFAULT 'ANTES',
+        legenda TEXT NOT NULL,
+        url TEXT NOT NULL,
+        criado_em TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS fotos_os_empresa_id_ordem_servico_id_idx ON fotos_os(empresa_id, ordem_servico_id);
+    `);
+  } catch (err) {
+    console.warn('⚠️ [Schema Sync] Aviso ao sincronizar tabelas adicionais:', err);
+  }
+}
 
 // Registrar CORS
 await app.register(cors, {
@@ -85,6 +129,7 @@ const PORT = Number(process.env.PORT) || 3333;
 const HOST = process.env.HOST || '0.0.0.0';
 
 try {
+  await garantirSchemaAtualizado();
   await app.listen({ port: PORT, host: HOST });
   console.log(`🚀 [Vortex Auto API] Servidor rodando em http://localhost:${PORT}`);
 } catch (err) {

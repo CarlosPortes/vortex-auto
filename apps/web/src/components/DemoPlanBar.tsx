@@ -7,10 +7,15 @@ import {
   Zap,
   Info,
   Sliders,
+  Crown,
 } from 'lucide-react';
 import { useDemoPlan } from '../context/DemoPlanContext';
 
-export const DemoPlanBar: React.FC = () => {
+interface DemoPlanBarProps {
+  onAbrirGestaoOficinas?: () => void;
+}
+
+export const DemoPlanBar: React.FC<DemoPlanBarProps> = ({ onAbrirGestaoOficinas }) => {
   const { planoAtivo, comFotos, setPlanoAtivo, setComFotos, infoPlano } = useDemoPlan();
   const [modalComparativo, setModalComparativo] = useState(false);
 
@@ -198,6 +203,26 @@ export const DemoPlanBar: React.FC = () => {
           >
             <Info size={14} color="#38bdf8" /> Comparar Pacotes
           </button>
+
+          {onAbrirGestaoOficinas && (
+            <button
+              type="button"
+              onClick={onAbrirGestaoOficinas}
+              className="btn btn-secondary"
+              style={{
+                padding: '6px 12px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                border: '1px solid rgba(245, 158, 11, 0.45)',
+                color: 'var(--accent-amber)',
+              }}
+            >
+              <Crown size={14} /> Todas as Oficinas
+            </button>
+          )}
         </div>
       </div>
 

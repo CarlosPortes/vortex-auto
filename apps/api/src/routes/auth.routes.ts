@@ -128,19 +128,20 @@ export async function authRoutes(app: FastifyInstance) {
     '/select-tenant',
     { onRequest: [async (req, rep) => req.jwtVerify()] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const parseResult = SelecionarTenantSchema.safeParse(request.body);
-      if (!parseResult.success) {
+      const { empresaId } = request.body as { empresaId?: string; unidadeId?: string };
+      let { unidadeId } = request.body as { empresaId?: string; unidadeId?: string };
+
+      if (!empresaId) {
         return reply.status(400).send({
           sucesso: false,
-          mensagem: 'Dados inválidos',
-          erros: parseResult.error.errors.map((e) => ({ campo: e.path.join('.'), mensagem: e.message })),
+          mensagem: 'Informe o ID da oficina (empresaId) que deseja acessar.',
         });
       }
 
-      const { empresaId, unidadeId } = parseResult.data;
       const user = request.user as { usuarioId: string; nome: string; email: string };
+      const usuarioDb = await prisma.usuario.findUnique({ where: { id: user.usuarioId } });
 
-      const vinculo = await prisma.vinculoUsuarioEmpresa.findUnique({
+      let vinculo = await prisma.vinculoUsuarioEmpresa.findUnique({
         where: {
           usuarioId_empresaId: {
             usuarioId: user.usuarioId,
@@ -154,12 +155,76 @@ export async function authRoutes(app: FastifyInstance) {
         },
       });
 
-      if (!vinculo || !vinculo.ativo || !vinculo.empresa.ativo) {
+      // Se o usuário é SuperAdmin e está acessando uma oficina piloto/cliente cadastrada por terceiros
+      if (!vinculo && usuarioDb?.superAdmin) {
+        const empresaAlvo = await prisma.empresa.findUnique({
+          where: { id: empresaId },
+          include: { unidades: { where: { ativo: true } } },
+        });
+
+        if (!empresaAlvo) {
+          return reply.status(404).send({
+            sucesso: false,
+            mensagem: 'Oficina não encontrada.',
+          });
+        }
+
+        let unidadeAlvo =
+          empresaAlvo.unidades.find((u) => u.id === unidadeId) ||
+          empresaAlvo.unidades.find((u) => u.principal) ||
+          empresaAlvo.unidades[0];
+
+        if (!unidadeAlvo) {
+          unidadeAlvo = await prisma.unidade.create({
+            data: {
+              empresaId: empresaAlvo.id,
+              nome: 'Matriz',
+              principal: true,
+              ativo: true,
+            },
+          });
+        }
+
+        const novoVinculo = await prisma.vinculoUsuarioEmpresa.create({
+          data: {
+            usuarioId: usuarioDb.id,
+            empresaId: empresaAlvo.id,
+            unidadeId: unidadeAlvo.id,
+            ativo: true,
+            alcadaDesconto: 100.0,
+          },
+        });
+
+        const perfilAdmin = await prisma.perfil.findUnique({
+          where: { codigo: PerfilAcesso.ADMIN_GERAL },
+        });
+        if (perfilAdmin) {
+          await prisma.vinculoPerfil.create({
+            data: {
+              vinculoId: novoVinculo.id,
+              perfilId: perfilAdmin.id,
+            },
+          });
+        }
+
+        vinculo = await prisma.vinculoUsuarioEmpresa.findUnique({
+          where: { id: novoVinculo.id },
+          include: {
+            empresa: true,
+            unidade: true,
+            perfis: { include: { perfil: true } },
+          },
+        });
+      }
+
+      if (!vinculo || !vinculo.ativo || (!vinculo.empresa.ativo && !usuarioDb?.superAdmin)) {
         return reply.status(403).send({
           sucesso: false,
           mensagem: 'Vínculo com a empresa inválido ou inativo.',
         });
       }
+
+      unidadeId = unidadeId || vinculo.unidadeId;
 
       const token = app.jwt.sign(
         {
