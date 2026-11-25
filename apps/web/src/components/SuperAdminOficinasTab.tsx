@@ -18,6 +18,8 @@ import {
   Power,
   RefreshCw,
   X,
+  Image as ImageIcon,
+  Upload,
 } from 'lucide-react';
 import { OficinaAdminSaaS, PlanoSistema } from '../types';
 import { apiRequest, setStoredToken } from '../api';
@@ -49,6 +51,7 @@ export const SuperAdminOficinasTab: React.FC<SuperAdminOficinasTabProps> = ({
   const [novoTelefone, setNovoTelefone] = useState('');
   const [novaCidade, setNovaCidade] = useState('');
   const [novaUf, setNovaUf] = useState('SP');
+  const [novaLogoUrl, setNovaLogoUrl] = useState<string>('');
   const [novoPlano, setNovoPlano] = useState<PlanoSistema>('BASICO');
   const [novoComFotos, setNovoComFotos] = useState(true);
   const [novoAdminNome, setNovoAdminNome] = useState('');
@@ -151,6 +154,47 @@ export const SuperAdminOficinasTab: React.FC<SuperAdminOficinasTabProps> = ({
     }
   };
 
+  const handleUploadLogoExistente = (oficina: OficinaAdminSaaS, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      setSalvandoId(oficina.id);
+      const res = await apiRequest(`/admin/oficinas/${oficina.id}/plano`, {
+        method: 'PATCH',
+        body: JSON.stringify({ logoUrl: base64 }),
+      });
+      setSalvandoId(null);
+      if (res.sucesso) {
+        setOficinas((prev) =>
+          prev.map((o) => (o.id === oficina.id ? { ...o, logoUrl: base64 } : o))
+        );
+        setFeedback({
+          tipo: 'sucesso',
+          texto: `Logo da oficina "${oficina.nomeFantasia}" atualizada com sucesso!`,
+        });
+        if (oficina.id === empresaAtivaId) {
+          onTenantSwitched();
+        }
+      } else {
+        setFeedback({ tipo: 'erro', texto: res.mensagem || 'Erro ao salvar logo da oficina.' });
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleUploadNovaLogoModal = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setNovaLogoUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleCriarNovaOficina = async (e: React.FormEvent) => {
     e.preventDefault();
     setCriandoOficina(true);
@@ -165,6 +209,7 @@ export const SuperAdminOficinasTab: React.FC<SuperAdminOficinasTabProps> = ({
         telefone: novoTelefone,
         cidade: novaCidade,
         uf: novaUf,
+        logoUrl: novaLogoUrl || null,
         planoAssinatura: novoPlano,
         comFotos: novoComFotos,
         nomeAdmin: novoAdminNome,
@@ -186,6 +231,7 @@ export const SuperAdminOficinasTab: React.FC<SuperAdminOficinasTabProps> = ({
       setNovoCnpj('');
       setNovoTelefone('');
       setNovaCidade('');
+      setNovaLogoUrl('');
       setNovoAdminNome('');
       setNovoAdminEmail('');
       setNovoAdminSenha('');
@@ -451,22 +497,37 @@ export const SuperAdminOficinasTab: React.FC<SuperAdminOficinasTabProps> = ({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-                    <div
-                      style={{
-                        width: '46px',
-                        height: '46px',
-                        borderRadius: '12px',
-                        background: isAtivaNaSessao ? 'var(--primary)' : 'var(--bg-subtle)',
-                        color: isAtivaNaSessao ? '#ffffff' : 'var(--primary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '1px solid var(--border-subtle)',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Building2 size={22} />
-                    </div>
+                    {oficina.logoUrl ? (
+                      <img
+                        src={oficina.logoUrl}
+                        alt={oficina.nomeFantasia}
+                        style={{
+                          width: '54px',
+                          height: '54px',
+                          borderRadius: '12px',
+                          objectFit: 'cover',
+                          border: isAtivaNaSessao ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
+                          flexShrink: 0,
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: '54px',
+                          height: '54px',
+                          borderRadius: '12px',
+                          background: isAtivaNaSessao ? 'var(--primary)' : 'var(--bg-subtle)',
+                          color: isAtivaNaSessao ? '#ffffff' : 'var(--primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1px solid var(--border-subtle)',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Building2 size={24} />
+                      </div>
+                    )}
 
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -540,8 +601,23 @@ export const SuperAdminOficinasTab: React.FC<SuperAdminOficinasTabProps> = ({
                     </div>
                   </div>
 
-                  {/* Botões de Ação: Acessar Oficina + Ativar/Suspender */}
+                  {/* Botões de Ação: Alterar Logo + Acessar Oficina + Ativar/Suspender */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <label
+                      className="btn btn-secondary"
+                      title="Inserir ou alterar a foto/logo desta oficina"
+                      style={{ fontSize: '0.78rem', padding: '8px 12px', cursor: 'pointer' }}
+                    >
+                      <ImageIcon size={14} color="var(--primary)" />
+                      {oficina.logoUrl ? 'Trocar Logo' : 'Inserir Logo'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleUploadLogoExistente(oficina, e)}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+
                     <button
                       type="button"
                       onClick={() =>
@@ -900,6 +976,76 @@ export const SuperAdminOficinasTab: React.FC<SuperAdminOficinasTabProps> = ({
                     placeholder="SP"
                     className="input-field"
                   />
+                </div>
+              </div>
+
+              {/* Upload da Logo / Foto da Oficina no Modal SuperAdmin */}
+              <div>
+                <label className="input-label">Logo ou Foto da Oficina (Opcional)</label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    background: 'var(--bg-subtle)',
+                    border: '1px dashed var(--border-subtle)',
+                  }}
+                >
+                  {novaLogoUrl ? (
+                    <img
+                      src={novaLogoUrl}
+                      alt="Preview Logo"
+                      style={{
+                        width: '46px',
+                        height: '46px',
+                        borderRadius: '10px',
+                        objectFit: 'cover',
+                        border: '1px solid var(--primary)',
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: '46px',
+                        height: '46px',
+                        borderRadius: '10px',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      <ImageIcon size={20} />
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.76rem', padding: '6px 12px', cursor: 'pointer' }}
+                    >
+                      <Upload size={13} /> Selecionar Logo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUploadNovaLogoModal}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                    {novaLogoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setNovaLogoUrl('')}
+                        className="btn btn-secondary"
+                        style={{ fontSize: '0.72rem', padding: '6px 10px', color: '#ef4444' }}
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 

@@ -187,6 +187,7 @@ export async function tenantMiddleware(request: FastifyRequest, reply: FastifyRe
     nomeUsuario: vinculo.usuario.nome,
     emailUsuario: vinculo.usuario.email,
     razaoSocialEmpresa: vinculo.empresa.razaoSocial,
+    logoUrl: (vinculo.empresa as any).logoUrl || null,
     superAdmin: Boolean(vinculo.usuario.superAdmin),
     planoAssinatura,
     comFotos: Boolean((vinculo.empresa as any).comFotos),

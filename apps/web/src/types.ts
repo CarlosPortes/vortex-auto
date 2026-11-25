@@ -8,6 +8,7 @@ export interface UserTenantContext {
   nomeUsuario: string;
   emailUsuario: string;
   razaoSocialEmpresa: string;
+  logoUrl?: string | null;
   superAdmin?: boolean;
   planoAssinatura?: PlanoSistema;
   comFotos?: boolean;
@@ -21,6 +22,7 @@ export interface OficinaAdminSaaS {
   telefone: string;
   cidade: string;
   uf: string;
+  logoUrl?: string | null;
   planoAssinatura: PlanoSistema;
   comFotos: boolean;
   ativo: boolean;

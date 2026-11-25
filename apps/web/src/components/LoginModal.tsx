@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wrench, AlertCircle, ArrowRight } from 'lucide-react';
+import { Wrench, AlertCircle, ArrowRight, Image as ImageIcon, Upload } from 'lucide-react';
 import { apiRequest, setStoredToken } from '../api';
 import { ThemeSelector } from './ThemeSelector';
 
@@ -21,12 +21,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLoginSuccess }) => {
   const [telefone, setTelefone] = useState('');
   const [cidade, setCidade] = useState('');
   const [uf, setUf] = useState('SP');
+  const [logoUrl, setLogoUrl] = useState<string>('');
   const [nomeAdmin, setNomeAdmin] = useState('');
   const [emailAdmin, setEmailAdmin] = useState('');
   const [senhaAdmin, setSenhaAdmin] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const handleUploadLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +72,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLoginSuccess }) => {
         telefone,
         cidade,
         uf,
+        logoUrl: logoUrl || null,
         nomeUnidade: 'Matriz',
         nomeAdmin,
         emailAdmin,
@@ -249,6 +261,84 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLoginSuccess }) => {
                 placeholder="Ex: Oficina Premium"
                 className="input-field"
               />
+            </div>
+
+            {/* Campo de Upload da Logo / Foto da Oficina */}
+            <div>
+              <label className="input-label">Logo ou Foto da Oficina (Opcional)</label>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '10px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-subtle)',
+                  border: '1px dashed var(--border-subtle)',
+                }}
+              >
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt="Logo da Oficina"
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '10px',
+                      objectFit: 'cover',
+                      border: '1px solid var(--primary)',
+                      flexShrink: 0,
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '10px',
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border-subtle)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-muted)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <ImageIcon size={20} />
+                  </div>
+                )}
+
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <label
+                      className="btn btn-secondary"
+                      style={{ padding: '5px 10px', fontSize: '0.76rem', cursor: 'pointer' }}
+                    >
+                      <Upload size={13} /> Selecionar Imagem
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUploadLogo}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                    {logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setLogoUrl('')}
+                        className="btn btn-secondary"
+                        style={{ padding: '5px 8px', fontSize: '0.72rem', color: '#ef4444' }}
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
+                    PNG, JPG ou WEBP — Exibida no cabeçalho e nas Ordens de Serviço da oficina.
+                  </span>
+                </div>
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>

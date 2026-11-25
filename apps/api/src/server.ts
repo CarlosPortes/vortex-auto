@@ -32,6 +32,7 @@ async function garantirSchemaAtualizado() {
     await prisma.$executeRawUnsafe(`
       ALTER TABLE empresas ADD COLUMN IF NOT EXISTS plano_assinatura TEXT NOT NULL DEFAULT 'BASICO';
       ALTER TABLE empresas ADD COLUMN IF NOT EXISTS com_fotos BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE empresas ADD COLUMN IF NOT EXISTS logo_url TEXT;
     `);
 
     await prisma.$executeRawUnsafe(`

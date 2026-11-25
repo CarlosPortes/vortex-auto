@@ -14,6 +14,7 @@ export interface ITenantContext {
   nomeUsuario: string;
   emailUsuario: string;
   razaoSocialEmpresa: string;
+  logoUrl?: string | null;
   superAdmin?: boolean;
   planoAssinatura?: 'BASICO' | 'INTERMEDIARIO' | 'AVANCADO';
   comFotos?: boolean;

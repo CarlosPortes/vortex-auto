@@ -18,6 +18,7 @@ model Empresa {
   telefone        String
   cidade          String
   uf              String   @db.VarChar(2)
+  logoUrl         String?  @map("logo_url") @db.Text
   planoAssinatura String   @default("BASICO") @map("plano_assinatura") // BASICO, INTERMEDIARIO, AVANCADO
   comFotos        Boolean  @default(false) @map("com_fotos")
   ativo           Boolean  @default(true)

@@ -284,6 +284,7 @@ export async function adminRoutes(app: FastifyInstance) {
         telefone: emp.telefone,
         cidade: emp.cidade,
         uf: emp.uf,
+        logoUrl: (emp as any).logoUrl || null,
         planoAssinatura: ((emp as any).planoAssinatura || 'BASICO') as 'BASICO' | 'INTERMEDIARIO' | 'AVANCADO',
         comFotos: Boolean((emp as any).comFotos),
         ativo: emp.ativo,
@@ -332,6 +333,7 @@ export async function adminRoutes(app: FastifyInstance) {
       telefone,
       cidade,
       uf,
+      logoUrl,
     } = request.body as {
       planoAssinatura?: 'BASICO' | 'INTERMEDIARIO' | 'AVANCADO';
       comFotos?: boolean;
@@ -341,6 +343,7 @@ export async function adminRoutes(app: FastifyInstance) {
       telefone?: string;
       cidade?: string;
       uf?: string;
+      logoUrl?: string | null;
     };
 
     if (!tenant.superAdmin && !tenant.perfis.includes(PerfilAcesso.ADMIN_GERAL)) {
@@ -382,6 +385,9 @@ export async function adminRoutes(app: FastifyInstance) {
     }
     if (uf && uf.trim()) {
       dataUpdate.uf = uf.trim().toUpperCase().slice(0, 2);
+    }
+    if (logoUrl !== undefined) {
+      dataUpdate.logoUrl = logoUrl || null;
     }
 
     const atualizada = await prisma.empresa.update({
@@ -433,6 +439,7 @@ export async function adminRoutes(app: FastifyInstance) {
       telefone: string;
       cidade: string;
       uf: string;
+      logoUrl?: string | null;
       planoAssinatura?: 'BASICO' | 'INTERMEDIARIO' | 'AVANCADO';
       comFotos?: boolean;
       nomeAdmin: string;
@@ -467,6 +474,7 @@ export async function adminRoutes(app: FastifyInstance) {
           telefone: body.telefone?.trim() || '(00) 00000-0000',
           cidade: body.cidade?.trim() || 'São Paulo',
           uf: (body.uf || 'SP').trim().toUpperCase().slice(0, 2),
+          logoUrl: body.logoUrl || null,
           planoAssinatura: body.planoAssinatura || 'BASICO',
           comFotos: Boolean(body.comFotos),
           ativo: true,

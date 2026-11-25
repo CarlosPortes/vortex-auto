@@ -316,7 +316,8 @@ export async function authRoutes(app: FastifyInstance) {
           telefone: data.telefone,
           cidade: data.cidade,
           uf: data.uf.toUpperCase(),
-        },
+          logoUrl: data.logoUrl || null,
+        } as any,
       });
 
       const unidade = await tx.unidade.create({

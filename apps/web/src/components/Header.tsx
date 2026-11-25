@@ -90,7 +90,21 @@ export const Header: React.FC<HeaderProps> = ({ context, onLogout, onAbrirGestao
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-subtle)'
             }}>
-              <Building2 size={18} color="var(--primary)" />
+              {context.logoUrl ? (
+                <img
+                  src={context.logoUrl}
+                  alt={context.razaoSocialEmpresa}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    objectFit: 'cover',
+                    border: '1px solid var(--primary)',
+                  }}
+                />
+              ) : (
+                <Building2 size={18} color="var(--primary)" />
+              )}
               <div>
                 <div style={{ fontSize: '0.86rem', fontWeight: 600 }}>{context.razaoSocialEmpresa}</div>
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tenant ID: {context.empresaId.slice(0, 8)}...</div>

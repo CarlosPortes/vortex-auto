@@ -150,20 +150,36 @@ const AppContent: React.FC = () => {
         >
           {/* Card 1: Tenant & Isolamento */}
           <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '12px',
-                background: 'rgba(14, 165, 233, 0.15)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--primary)',
-              }}
-            >
-              <Building size={24} />
-            </div>
+            {context.logoUrl ? (
+              <img
+                src={context.logoUrl}
+                alt={context.razaoSocialEmpresa}
+                style={{
+                  width: '50px',
+                  height: '50px',
+                  borderRadius: '12px',
+                  objectFit: 'cover',
+                  border: '2px solid var(--primary)',
+                  flexShrink: 0,
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '12px',
+                  background: 'rgba(14, 165, 233, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--primary)',
+                  flexShrink: 0,
+                }}
+              >
+                <Building size={24} />
+              </div>
+            )}
             <div>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Tenant Ativo (Isolamento)</div>
               <div style={{ fontSize: '1.15rem', fontWeight: 700, marginTop: '2px' }}>

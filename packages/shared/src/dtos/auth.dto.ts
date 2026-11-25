@@ -16,6 +16,7 @@ export const CadastroInicialEmpresaSchema = z.object({
   telefone: z.string().min(10, 'Telefone inválido'),
   cidade: z.string().min(2, 'Cidade obrigatória'),
   uf: z.string().length(2, 'UF deve ter 2 caracteres'),
+  logoUrl: z.string().optional().nullable(),
   
   // Unidade Principal (MVP: 1 unidade ativa por empresa)
   nomeUnidade: z.string().min(2, 'Nome da unidade obrigatório').default('Matriz'),
