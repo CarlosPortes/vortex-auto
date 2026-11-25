@@ -28,45 +28,44 @@ const app = Fastify({
 });
 
 async function garantirSchemaAtualizado() {
-  try {
-    await prisma.$executeRawUnsafe(`
-      ALTER TABLE empresas ADD COLUMN IF NOT EXISTS plano_assinatura TEXT NOT NULL DEFAULT 'BASICO';
-      ALTER TABLE empresas ADD COLUMN IF NOT EXISTS com_fotos BOOLEAN NOT NULL DEFAULT false;
-      ALTER TABLE empresas ADD COLUMN IF NOT EXISTS logo_url TEXT;
-    `);
+  const comandosSql = [
+    `ALTER TABLE empresas ADD COLUMN IF NOT EXISTS plano_assinatura TEXT NOT NULL DEFAULT 'BASICO'`,
+    `ALTER TABLE empresas ADD COLUMN IF NOT EXISTS com_fotos BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE empresas ADD COLUMN IF NOT EXISTS logo_url TEXT`,
+    `CREATE TABLE IF NOT EXISTS servicos_catalogo (
+      id TEXT PRIMARY KEY,
+      empresa_id TEXT NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+      codigo TEXT NOT NULL,
+      nome TEXT NOT NULL,
+      categoria TEXT NOT NULL DEFAULT 'MECANICA_GERAL',
+      valor_sugerido NUMERIC(12, 2) NOT NULL DEFAULT 0.0,
+      tempo_estimado_minutos INTEGER NOT NULL DEFAULT 30,
+      descricao_padrao TEXT,
+      ativo BOOLEAN NOT NULL DEFAULT true,
+      criado_em TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      atualizado_em TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (empresa_id, codigo)
+    )`,
+    `CREATE INDEX IF NOT EXISTS servicos_catalogo_empresa_id_categoria_idx ON servicos_catalogo(empresa_id, categoria)`,
+    `CREATE TABLE IF NOT EXISTS fotos_os (
+      id TEXT PRIMARY KEY,
+      empresa_id TEXT NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+      ordem_servico_id TEXT NOT NULL REFERENCES ordens_servico(id) ON DELETE CASCADE,
+      etapa TEXT NOT NULL DEFAULT 'ANTES',
+      legenda TEXT NOT NULL,
+      url TEXT NOT NULL,
+      criado_em TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE INDEX IF NOT EXISTS fotos_os_empresa_id_ordem_servico_id_idx ON fotos_os(empresa_id, ordem_servico_id)`,
+    `UPDATE usuarios SET super_admin = true WHERE email = 'admin@vortexauto.com.br'`,
+  ];
 
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS servicos_catalogo (
-        id TEXT PRIMARY KEY,
-        empresa_id TEXT NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
-        codigo TEXT NOT NULL,
-        nome TEXT NOT NULL,
-        categoria TEXT NOT NULL DEFAULT 'MECANICA_GERAL',
-        valor_sugerido NUMERIC(12, 2) NOT NULL DEFAULT 0.0,
-        tempo_estimado_minutos INTEGER NOT NULL DEFAULT 30,
-        descricao_padrao TEXT,
-        ativo BOOLEAN NOT NULL DEFAULT true,
-        criado_em TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        atualizado_em TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-         UNIQUE (empresa_id, codigo)
-      );
-      CREATE INDEX IF NOT EXISTS servicos_catalogo_empresa_id_categoria_idx ON servicos_catalogo(empresa_id, categoria);
-    `);
-
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS fotos_os (
-        id TEXT PRIMARY KEY,
-        empresa_id TEXT NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
-        ordem_servico_id TEXT NOT NULL REFERENCES ordens_servico(id) ON DELETE CASCADE,
-        etapa TEXT NOT NULL DEFAULT 'ANTES',
-        legenda TEXT NOT NULL,
-        url TEXT NOT NULL,
-        criado_em TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-      );
-      CREATE INDEX IF NOT EXISTS fotos_os_empresa_id_ordem_servico_id_idx ON fotos_os(empresa_id, ordem_servico_id);
-    `);
-  } catch (err) {
-    console.warn('⚠️ [Schema Sync] Aviso ao sincronizar tabelas adicionais:', err);
+  for (const sql of comandosSql) {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+    } catch (err) {
+      console.warn('⚠️ [Schema Sync] Aviso ao executar comando DDL:', err);
+    }
   }
 }
 
